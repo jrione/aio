@@ -53,6 +53,12 @@ cp .env.example .env   # opsional — tanpa ini, nilai default yang dipakai
 npm run dev            # http://localhost:5173
 ```
 
+Port dev server diatur lewat `VITE_DEV_PORT` (default `5173`). Nilainya
+divalidasi saat start — salah ketik atau port di luar rentang 1–65535 langsung
+gagal, bukan diam-diam jatuh ke port lain. `strictPort` juga aktif, jadi kalau
+port sudah dipakai proses lain Vite berhenti dengan pesan jelas alih-alih
+pindah sendiri ke port berikutnya.
+
 ## Script npm
 
 | Script                 | Fungsi                                           |
@@ -109,6 +115,7 @@ Variabel saat ini:
 | ------------------- | ------- | ------------- | --------------------------------- |
 | `VITE_APP_NAME`     | string  | `AIO DevOps`  | `<title>` + header layout         |
 | `VITE_APP_ENV`      | string  | `development` | Label lingkungan                  |
+| `VITE_DEV_PORT`     | number  | `5173`        | Port `npm run dev`                |
 | `VITE_API_BASE_URL` | string  | `/api`        | Base URL backend (Issue #8)       |
 | `VITE_API_TIMEOUT`  | number  | `15000`       | Timeout request (Issue #8)        |
 | `VITE_USE_MOCK`     | boolean | `true`        | Switch mock ↔ API asli (Issue #8) |

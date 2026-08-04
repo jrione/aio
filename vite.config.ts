@@ -17,11 +17,31 @@ const htmlEnvDefaults = (env: Record<string, string | number | boolean>): Plugin
     ),
 })
 
+/**
+ * Membaca variabel bertipe angka dari env, dengan fallback ke default di
+ * env.defaults.ts. Nilai yang tidak masuk akal ditolak keras di sini agar
+ * salah ketik (`VITE_DEV_PORT=abc`) gagal saat start, bukan diam-diam
+ * jatuh ke port lain.
+ */
+const readPort = (env: Record<string, string | number | boolean>, key: string): number => {
+  const port = Number(env[key])
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`[env] ${key}="${env[key]}" bukan nomor port yang valid (1–65535)`)
+  }
+  return port
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const fileEnv = loadEnv(mode, process.cwd(), 'VITE_')
+  const env = { ...ENV_DEFAULTS, ...loadEnv(mode, process.cwd(), 'VITE_') }
 
   return {
-    plugins: [react(), htmlEnvDefaults({ ...ENV_DEFAULTS, ...fileEnv })],
+    plugins: [react(), htmlEnvDefaults(env)],
+    server: {
+      port: readPort(env, 'VITE_DEV_PORT'),
+      // Gagal terang-terangan kalau port sudah dipakai, daripada diam-diam
+      // pindah ke port lain sementara dokumentasi menyebut port yang lain.
+      strictPort: true,
+    },
   }
 })

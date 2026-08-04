@@ -43,6 +43,13 @@ export const ENV_SCHEMA = [
     type: 'string',
   },
   {
+    key: 'VITE_DEV_PORT',
+    group: 'Dev server',
+    description: 'Port yang dipakai `npm run dev`.',
+    default: 5173,
+    type: 'number',
+  },
+  {
     key: 'VITE_API_BASE_URL',
     group: 'API (Issue #8)',
     description: 'Base URL backend. Semua request lewat HTTP client terpusat.',
