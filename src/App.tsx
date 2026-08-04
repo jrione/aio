@@ -2,10 +2,28 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
-import { env } from './config/env.js'
+import { env } from './config/env.ts'
 import './App.css'
 
-const INFO_CARDS = [
+interface InfoLink {
+  href: string
+  label: string
+  /** Id simbol di `/icons.svg`. Dipakai bila tautan memakai ikon SVG. */
+  icon?: string
+  /** Alternatif ikon: gambar impor (logo Vite/React). */
+  image?: string
+  imageClass?: string
+}
+
+interface InfoCardData {
+  id: string
+  icon: string
+  title: string
+  subtitle: string
+  links: InfoLink[]
+}
+
+const INFO_CARDS: InfoCardData[] = [
   {
     id: 'docs',
     icon: 'documentation-icon',
@@ -35,7 +53,7 @@ const INFO_CARDS = [
   },
 ]
 
-function Icon({ name, className = 'button-icon' }) {
+function Icon({ name, className = 'button-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} role="presentation" aria-hidden="true">
       <use href={`/icons.svg#${name}`}></use>
@@ -43,7 +61,7 @@ function Icon({ name, className = 'button-icon' }) {
   )
 }
 
-function InfoCard({ id, icon, title, subtitle, links }) {
+function InfoCard({ id, icon, title, subtitle, links }: InfoCardData) {
   return (
     <div id={id}>
       <Icon name={icon} className="icon" />
@@ -81,7 +99,7 @@ function App() {
         <div>
           <h1>{env.appName}</h1>
           <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
           </p>
         </div>
         <button type="button" className="counter" onClick={() => setCount((count) => count + 1)}>

@@ -1,18 +1,18 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-import { ENV_DEFAULTS } from './env.defaults.js'
+import { ENV_DEFAULTS } from './env.defaults.ts'
 
 /**
  * Mengisi placeholder `%VITE_*%` di index.html dengan default dari
- * env.defaults.js bila variabel tersebut tidak ada di file `.env`.
+ * env.defaults.ts bila variabel tersebut tidak ada di file `.env`.
  * Tanpa ini, clone baru yang belum menyalin `.env` akan menampilkan
  * teks mentah `%VITE_APP_NAME%` di tab browser.
  */
-const htmlEnvDefaults = (env) => ({
+const htmlEnvDefaults = (env: Record<string, string | number | boolean>): Plugin => ({
   name: 'html-env-defaults',
-  transformIndexHtml: (html) =>
-    html.replace(/%(VITE_\w+)%/g, (placeholder, key) =>
+  transformIndexHtml: (html: string) =>
+    html.replace(/%(VITE_\w+)%/g, (placeholder, key: string) =>
       key in env ? String(env[key]) : placeholder,
     ),
 })

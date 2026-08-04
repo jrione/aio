@@ -2,25 +2,31 @@
  * Sumber tunggal (single source of truth) untuk seluruh variabel environment.
  *
  * Dipakai ulang oleh:
- *   - `vite.config.js`               → substitusi `%VITE_*%` di index.html
- *   - `src/config/env.js`            → nilai runtime yang dipakai komponen
- *   - `scripts/env-example.mjs`      → generate & cek sinkronisasi `.env.example`
+ *   - `vite.config.ts`              → substitusi `%VITE_*%` di index.html
+ *   - `src/config/env.ts`           → nilai runtime + tipe yang dipakai komponen
+ *   - `src/vite-env.d.ts`           → tipe `import.meta.env`
+ *   - `scripts/env-example.ts`      → generate & cek sinkronisasi `.env.example`
  *
  * Menambah variabel baru? Cukup tambah satu entri di sini, lalu jalankan
- * `npm run env:example`. Jangan menulis daftar variabel di tempat lain.
+ * `npm run env:example`. Tipe di seluruh aplikasi ikut menyesuaikan sendiri —
+ * jangan menulis daftar variabel di tempat lain.
  *
  * PENTING: seluruh nilai di sini terbundel ke JavaScript sisi klien dan dapat
  * dibaca siapa pun. Jangan pernah menaruh secret (API key, password, token).
  */
 
-/** @typedef {'string' | 'number' | 'boolean'} EnvType */
+export type EnvType = 'string' | 'number' | 'boolean'
 
-/**
- * @type {ReadonlyArray<{
- *   key: string, group: string, description: string,
- *   default: string | number | boolean, type: EnvType
- * }>}
- */
+export interface EnvVariable {
+  /** Wajib ber-prefix `VITE_` agar diekspos Vite ke sisi klien. */
+  readonly key: `VITE_${string}`
+  /** Judul grup di `.env.example`. */
+  readonly group: string
+  readonly description: string
+  readonly default: string | number | boolean
+  readonly type: EnvType
+}
+
 export const ENV_SCHEMA = [
   {
     key: 'VITE_APP_NAME',
@@ -57,7 +63,12 @@ export const ENV_SCHEMA = [
     default: true,
     type: 'boolean',
   },
-]
+] as const satisfies readonly EnvVariable[]
+
+/** Union seluruh key yang dikenal, mis. `'VITE_APP_NAME' | 'VITE_APP_ENV' | ...`. */
+export type EnvKey = (typeof ENV_SCHEMA)[number]['key']
 
 /** Peta `{ KEY: default }` — dipakai untuk fallback di luar konteks aplikasi. */
-export const ENV_DEFAULTS = Object.fromEntries(ENV_SCHEMA.map((v) => [v.key, v.default]))
+export const ENV_DEFAULTS = Object.fromEntries(
+  ENV_SCHEMA.map((variable) => [variable.key, variable.default]),
+) as Record<EnvKey, string | number | boolean>
