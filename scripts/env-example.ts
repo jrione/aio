@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * Generate `.env.example` dari `env.defaults.js`, atau cek sinkronisasinya.
+ * Generate `.env.example` dari `env.defaults.ts`, atau cek sinkronisasinya.
  *
- *   node scripts/env-example.mjs           → tulis ulang .env.example
- *   node scripts/env-example.mjs --check   → exit 1 kalau tidak sinkron
+ *   node scripts/env-example.ts           → tulis ulang .env.example
+ *   node scripts/env-example.ts --check   → exit 1 kalau tidak sinkron
+ *
+ * Dijalankan langsung oleh Node (type stripping bawaan Node >= 22.18),
+ * tanpa langkah kompilasi terpisah.
  *
  * Memenuhi acceptance criteria Issue #9: ".env.example sinkron dengan
  * variabel yang benar-benar dipakai."
@@ -12,22 +15,23 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
-import { ENV_SCHEMA } from '../env.defaults.js'
+import { ENV_SCHEMA, type EnvVariable } from '../env.defaults.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const target = resolve(root, '.env.example')
 
-const render = () => {
-  const groups = new Map()
+const render = (): string => {
+  const groups = new Map<string, EnvVariable[]>()
   for (const variable of ENV_SCHEMA) {
-    if (!groups.has(variable.group)) groups.set(variable.group, [])
-    groups.get(variable.group).push(variable)
+    const bucket = groups.get(variable.group) ?? []
+    bucket.push(variable)
+    groups.set(variable.group, bucket)
   }
 
   const lines = [
     '# ============================================================',
-    '#  Dibuat otomatis dari env.defaults.js — JANGAN diedit manual.',
-    '#  Ubah env.defaults.js lalu jalankan: npm run env:example',
+    '#  Dibuat otomatis dari env.defaults.ts — JANGAN diedit manual.',
+    '#  Ubah env.defaults.ts lalu jalankan: npm run env:example',
     '# ============================================================',
     '#',
     '#  Setup lokal:  cp .env.example .env',
@@ -59,11 +63,11 @@ if (process.argv.includes('--check')) {
     process.exit(1)
   }
   if (current !== content) {
-    console.error('✖ .env.example tidak sinkron dengan env.defaults.js.')
+    console.error('✖ .env.example tidak sinkron dengan env.defaults.ts.')
     console.error('  Jalankan: npm run env:example')
     process.exit(1)
   }
-  console.log('✓ .env.example sinkron dengan env.defaults.js')
+  console.log('✓ .env.example sinkron dengan env.defaults.ts')
 } else {
   writeFileSync(target, content)
   console.log(`✓ .env.example ditulis (${ENV_SCHEMA.length} variabel)`)
