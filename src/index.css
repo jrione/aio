@@ -113,7 +113,7 @@
   }
 
   body {
-    @apply bg-surface text-content font-sans antialiased;
+    @apply bg-surface font-sans text-content antialiased;
   }
 
   /*
@@ -121,6 +121,6 @@
    * elemen interaktif tanpa perlu diulang di tiap komponen.
    */
   :focus-visible {
-    @apply outline-brand-500 outline-2 outline-offset-2;
+    @apply outline-2 outline-offset-2 outline-brand-500;
   }
 }

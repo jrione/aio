@@ -67,7 +67,8 @@ pindah sendiri ke port berikutnya.
 | `npm run build`        | Type check lalu build produksi ke `dist/`        |
 | `npm run preview`      | Serve hasil build secara lokal                   |
 | `npm run typecheck`    | `tsc --noEmit` saja                              |
-| `npm run lint`         | oxlint (ESLint diputuskan di Issue #4)           |
+| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding           |
+| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe        |
 | `npm run format`       | Prettier, tulis perubahan                        |
 | `npm run format:check` | Prettier, hanya cek                              |
 | `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts` |
@@ -98,14 +99,14 @@ Tailwind membangkitkan utility langsung dari token, jadi menambah satu baris di
 ```
 
 ```tsx
-<button className="bg-brand-500 hover:bg-brand-600 text-white">Deploy</button>
+<button className="bg-brand-500 text-white hover:bg-brand-600">Deploy</button>
 ```
 
 Warna semantik punya tiga tingkat dengan peran tetap — `-soft` untuk latar
 badge, nama dasar untuk ikon/border, `-strong` untuk teks di atas latar `-soft`:
 
 ```tsx
-<span className="bg-success-soft text-success-strong ring-success/30 ring">Passed</span>
+<span className="bg-success-soft text-success-strong ring ring-success/30">Passed</span>
 ```
 
 Token tema (`surface`, `surface-raised`, `surface-sunken`, `content`,
@@ -124,6 +125,87 @@ pergantian mengikuti `prefers-color-scheme`; toggle manual menyusul di Issue #15
 - Nama class harus utuh di source. Tailwind memindai file sebagai teks, jadi
   `bg-brand-${step}` tidak akan terdeteksi; petakan ke string lengkap seperti
   `BRAND_SWATCHES` di `src/App.tsx`.
+
+## Linter: oxlint, bukan ESLint
+
+> Status: **ditetapkan** · Issue #4 · berlaku untuk seluruh project
+
+Issue #4 awalnya meminta ESLint. **ESLint tidak bisa dipakai di project ini**,
+dan itu konsekuensi langsung dari keputusan TypeScript 7 di Issue #2:
+
+- `typescript-eslint` membatasi peer dependency-nya ke `typescript >=4.8.4 <6.1.0`
+  — sama di rilis `latest` maupun `canary`.
+- `typescript@7` tidak lagi mengekspos API compiler JS yang klasik. Entry point
+  utamanya `./lib/version.cjs`; `require('typescript').createProgram` bernilai
+  `undefined`, dan yang tersisa hanya `typescript/unstable/*` dengan bentuk API
+  yang berbeda.
+
+`@typescript-eslint/parser` berdiri di atas API klasik itu, jadi ESLint bukan
+sekadar kurang optimal di sini — ia tidak bisa mem-parse `.tsx` project ini.
+Memaksakannya berarti turun ke TypeScript 6.x dan membatalkan Issue #2.
+
+**oxlint** mengisi perannya tanpa kompromi berarti: ia mem-parse TypeScript
+sendiri (Rust), dan mengimplementasikan ulang plugin-plugin ESLint yang kita
+butuhkan secara native — `react` (termasuk react-hooks), `typescript` (termasuk
+@typescript-eslint), `import`, `jsx-a11y`, `promise`, `node`, `unicorn`. Bila
+suatu saat ada aturan yang tidak ada padanannya, oxlint bisa memuat plugin gaya
+ESLint lewat `jsPlugins`.
+
+**Type-aware linting tetap didapat.** `npm run lint:types` menjalankan
+`oxlint --type-aware`, yang memakai `oxlint-tsgolint` di atas typescript-go —
+justru sejalan dengan pilihan compiler native. Aturan seperti
+`no-floating-promises` bekerja di sana. `npm run lint` sengaja dibiarkan tanpa
+type checking supaya tetap instan untuk dipakai berulang sambil menulis kode;
+`lint:types` dijalankan sebelum push.
+
+Konfigurasinya di `.oxlintrc.json` (format JSONC — komentar diperbolehkan).
+Aturan yang dimatikan selalu disertai alasannya di file itu.
+
+## Path alias
+
+`@/` menunjuk ke `src/`:
+
+```ts
+import { Icon } from '@/components/Icon.tsx'
+import { env } from '@/config/env.ts'
+```
+
+Didefinisikan **sekali** di `compilerOptions.paths` pada `tsconfig.json`. Dari
+sana: TypeScript dan editor membacanya langsung, oxlint menemukannya sendiri,
+dan Vite mendapatkannya lewat plugin `vite-tsconfig-paths`. Tidak ada daftar
+alias kedua di `vite.config.ts`.
+
+**Batasannya — ini penting.** Alias hanya berlaku untuk file di `src/`:
+
+- `scripts/` dijalankan langsung oleh Node lewat type stripping, dan Node tidak
+  membaca `paths` dari `tsconfig.json`. Tetap pakai path relatif di sana.
+- `vite.config.ts` dan `env.defaults.ts` dimuat di luar konteks alias.
+- `env.defaults.ts` ada di root, di luar jangkauan `@/`. Hanya
+  `src/config/env.ts` dan `src/vite-env.d.ts` yang menjangkaunya, dengan path
+  relatif.
+
+Di dalam `src/`, impor yang keluar dari direktorinya sendiri **wajib** memakai
+alias — `npm run lint` menolak pola `../`. Impor ke file TypeScript selalu
+menyertakan ekstensi `.ts` / `.tsx` eksplisit, sesuai konvensi yang dipakai di
+`scripts/`.
+
+## Format kode
+
+Prettier yang memformat, dengan dua catatan:
+
+**`.editorconfig` adalah sumbernya, bukan pelengkap.** Prettier membaca file itu
+dan mewarisi nilainya, jadi indentasi, akhir baris, dan lebar baris hanya
+ditulis di `.editorconfig` — tidak diduplikasi di `.prettierrc.json`.
+Pemetaannya: `indent_style` → `useTabs`, `indent_size` → `tabWidth`,
+`max_line_length` → `printWidth`, `end_of_line` → `endOfLine`. Yang tersisa di
+`.prettierrc.json` hanyalah opsi tanpa padanan EditorConfig (`semi`,
+`singleQuote`, `trailingComma`, `arrowParens`) dan konfigurasi plugin.
+
+**Urutan class Tailwind dirapikan otomatis** oleh `prettier-plugin-tailwindcss`.
+Tailwind v4 tidak punya `tailwind.config.js`, jadi plugin diarahkan ke
+stylesheet lewat `"tailwindStylesheet": "./src/index.css"` supaya token custom
+ikut dikenali. Urutan class tidak perlu diperdebatkan di review — cukup jalankan
+`npm run format`.
 
 ## Konfigurasi environment
 
@@ -144,15 +226,12 @@ benar. Jangan menulis daftar variabel di tempat lain.
 Membaca nilainya:
 
 ```ts
-import { env } from './config/env.ts'
+import { env } from '@/config/env.ts'
 
 env.appName // string
 env.apiTimeout // number
 env.useMock // boolean
 ```
-
-Impor memakai path relatif dengan ekstensi `.ts` eksplisit. Alias `@/` → `src/`
-dipasang di Issue #4.
 
 Komponen, hook, dan service **tidak boleh** menyentuh `import.meta.env`
 langsung — hanya `src/config/env.ts` yang boleh.
@@ -179,16 +258,19 @@ aio-devops/
 ├── scripts/             utilitas dev (dijalankan langsung oleh Node)
 ├── src/
 │   ├── assets/          gambar & ikon yang di-import
+│   ├── components/      komponen UI yang dipakai lintas halaman
 │   ├── config/          konfigurasi runtime (env)
 │   ├── App.tsx
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx
 │   └── vite-env.d.ts
+├── .editorconfig        sumber indentasi, EOL, lebar baris (dibaca Prettier)
+├── .oxlintrc.json       konfigurasi linter
 ├── env.defaults.ts      sumber tunggal variabel environment
-├── tsconfig.json
+├── tsconfig.json        termasuk sumber tunggal path alias `@/`
 └── vite.config.ts
 ```
 
-Struktur target berbasis fitur (`components/`, `layouts/`, `features/`,
-`routes/`, `services/`, `hooks/`, `store/`, `utils/`) dibangun bertahap mulai
-Issue #5. Rinciannya di `ISSUES.md`.
+Struktur target berbasis fitur (`layouts/`, `features/`, `routes/`,
+`services/`, `hooks/`, `store/`, `utils/`) dibangun bertahap mulai Issue #5.
+Rinciannya di `ISSUES.md`.

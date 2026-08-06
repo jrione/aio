@@ -1,4 +1,4 @@
-import { ENV_SCHEMA, type EnvType, type EnvVariable } from '../../env.defaults'
+import { ENV_SCHEMA, type EnvType, type EnvVariable } from '../../env.defaults.ts'
 
 /**
  * Satu-satunya tempat yang boleh menyentuh `import.meta.env`.
@@ -59,7 +59,10 @@ const resolve = (): Env => {
     try {
       return [toCamelCase(key), coerce(type, value)] as const
     } catch (error) {
-      throw new Error(`[env] ${key}: ${(error as Error).message}`)
+      // `cause` dipertahankan supaya jejak error aslinya tidak hilang saat
+      // dibungkus ulang dengan nama variabelnya.
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new Error(`[env] ${key}: ${detail}`, { cause: error })
     }
   })
 
