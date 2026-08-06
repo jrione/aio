@@ -1,109 +1,126 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/**
+ * Satu-satunya file CSS di project ini (Issue #3).
+ *
+ * Isinya tiga bagian, berurutan:
+ *   1. @import "tailwindcss"  → direktif Tailwind v4
+ *   2. @theme                 → design token: warna brand, warna semantik,
+ *                               font family, spacing dasar
+ *   3. @layer base            → CSS variable tema (light/dark) + reset tipis
+ *
+ * Token di sini adalah sumber tunggal untuk styling — sama seperti
+ * `env.defaults.ts` untuk environment. Tailwind v4 membaca @theme dan otomatis
+ * membangkitkan utility-nya, jadi menambah satu baris di sini langsung
+ * memunculkan class baru (`--color-brand-500` → `bg-brand-500`, `text-brand-500`,
+ * `border-brand-500`, ...). Jangan menaruh nilai warna/font mentah di komponen.
+ *
+ * Styling per-komponen ditulis sebagai utility class di file `.tsx`, bukan file
+ * `.css` terpisah. Aturan ini ditegakkan `npm run check:styles`.
+ */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@import 'tailwindcss';
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ─────────────────────────────────────────────────────────────
+ * Design token statis
+ * ───────────────────────────────────────────────────────────── */
+@theme {
+  /* Palet brand. Dipanggil lewat `bg-brand-500`, `text-brand-600`, dst. */
+  --color-brand-50: oklch(0.97 0.014 254.604);
+  --color-brand-100: oklch(0.932 0.032 255.585);
+  --color-brand-200: oklch(0.882 0.059 254.128);
+  --color-brand-300: oklch(0.809 0.105 251.813);
+  --color-brand-400: oklch(0.707 0.165 254.624);
+  --color-brand-500: oklch(0.623 0.214 259.815);
+  --color-brand-600: oklch(0.546 0.245 262.881);
+  --color-brand-700: oklch(0.488 0.243 264.376);
+  --color-brand-800: oklch(0.424 0.199 265.638);
+  --color-brand-900: oklch(0.379 0.146 265.522);
+  --color-brand-950: oklch(0.282 0.091 267.935);
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /*
+   * Warna semantik untuk status pipeline, deployment, dan alert.
+   * Tiap warna punya tiga tingkat dengan peran tetap:
+   *   -soft   → latar badge / banner
+   *   (dasar) → ikon, border, indikator
+   *   -strong → teks di atas latar -soft (kontras AA)
+   */
+  --color-success-soft: oklch(0.962 0.044 156.743);
+  --color-success: oklch(0.723 0.219 149.579);
+  --color-success-strong: oklch(0.448 0.119 151.328);
+
+  --color-warning-soft: oklch(0.973 0.071 103.193);
+  --color-warning: oklch(0.769 0.188 70.08);
+  --color-warning-strong: oklch(0.473 0.137 46.201);
+
+  --color-danger-soft: oklch(0.971 0.013 17.38);
+  --color-danger: oklch(0.637 0.237 25.331);
+  --color-danger-strong: oklch(0.444 0.177 26.899);
+
+  --color-info-soft: oklch(0.977 0.013 236.62);
+  --color-info: oklch(0.685 0.169 237.323);
+  --color-info-strong: oklch(0.443 0.11 240.79);
+
+  /* Font family. `font-sans` dipakai body, `font-display` untuk heading. */
+  --font-sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /*
+   * Spacing dasar. Seluruh skala spacing Tailwind v4 adalah kelipatan nilai
+   * ini — `p-4` = 4 × 0.25rem = 1rem. Ubah satu angka di sini dan seluruh
+   * ritme vertikal aplikasi ikut menyesuaikan.
+   */
+  --spacing: 0.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
+/* ─────────────────────────────────────────────────────────────
+ * Token tema (light/dark)
+ *
+ * `@theme inline` menaruh nilainya langsung di utility, sehingga
+ * `bg-surface` menghasilkan `background-color: var(--surface)` dan ikut
+ * berubah saat --surface diganti — baik oleh media query di bawah maupun
+ * oleh toggle dark mode manual nanti di Issue #15.
+ * ───────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-content: var(--content);
+  --color-content-muted: var(--content-muted);
+  --color-edge: var(--edge);
+}
+
+@layer base {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    color-scheme: light dark;
+
+    --surface: oklch(1 0 0);
+    --surface-raised: oklch(1 0 0);
+    --surface-sunken: oklch(0.975 0.002 264.5);
+    --content: oklch(0.21 0.034 264.665);
+    --content-muted: oklch(0.551 0.027 264.364);
+    --edge: oklch(0.928 0.006 264.531);
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: oklch(0.21 0.034 264.665);
+      --surface-raised: oklch(0.278 0.033 256.848);
+      --surface-sunken: oklch(0.13 0.028 261.692);
+      --content: oklch(0.967 0.003 264.542);
+      --content-muted: oklch(0.707 0.022 261.325);
+      --edge: oklch(0.373 0.034 259.733);
+    }
   }
-}
 
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+  body {
+    @apply bg-surface text-content font-sans antialiased;
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+  /*
+   * Fokus yang selalu terlihat. Ditaruh di base agar berlaku untuk seluruh
+   * elemen interaktif tanpa perlu diulang di tiap komponen.
+   */
+  :focus-visible {
+    @apply outline-brand-500 outline-2 outline-offset-2;
   }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

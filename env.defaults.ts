@@ -46,7 +46,7 @@ export const ENV_SCHEMA = [
     key: 'VITE_DEV_PORT',
     group: 'Dev server',
     description: 'Port yang dipakai `npm run dev`.',
-    default: 5173,
+    default: 3000,
     type: 'number',
   },
   {

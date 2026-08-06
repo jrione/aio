@@ -50,10 +50,10 @@ default Node di sebagian mesin masih 20.15.x dan akan gagal.
 nvm use            # Node 24, sesuai .nvmrc
 npm install
 cp .env.example .env   # opsional — tanpa ini, nilai default yang dipakai
-npm run dev            # http://localhost:5173
+npm run dev            # http://localhost:3000
 ```
 
-Port dev server diatur lewat `VITE_DEV_PORT` (default `5173`). Nilainya
+Port dev server diatur lewat `VITE_DEV_PORT` (default `3000`). Nilainya
 divalidasi saat start — salah ketik atau port di luar rentang 1–65535 langsung
 gagal, bukan diam-diam jatuh ke port lain. `strictPort` juga aktif, jadi kalau
 port sudah dipakai proses lain Vite berhenti dengan pesan jelas alih-alih
@@ -73,6 +73,57 @@ pindah sendiri ke port berikutnya.
 | `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts` |
 | `npm run env:check`    | Gagal bila `.env.example` tidak sinkron          |
 | `npm run check:lang`   | Gagal bila ada file JavaScript di source tree    |
+| `npm run check:styles` | Gagal bila ada file CSS per-komponen             |
+
+## Styling: Tailwind CSS
+
+> Status: **terpasang** · Issue #3
+
+Tailwind **v4** dipasang lewat plugin resmi `@tailwindcss/vite`. Tidak ada
+`tailwind.config.js` — sejak v4 seluruh konfigurasi ditulis sebagai CSS di
+`src/index.css`, dan itulah **satu-satunya** file CSS di project ini.
+
+Isinya tiga bagian berurutan:
+
+1. `@import 'tailwindcss'` — direktif Tailwind.
+2. `@theme` — design token statis: skala brand `50`–`950`, warna semantik
+   (`success` / `warning` / `danger` / `info`), font family, spacing dasar.
+3. `@layer base` — CSS variable tema light/dark plus reset tipis.
+
+Tailwind membangkitkan utility langsung dari token, jadi menambah satu baris di
+`@theme` cukup untuk memunculkan seluruh class turunannya:
+
+```css
+--color-brand-500: oklch(0.623 0.214 259.815);
+```
+
+```tsx
+<button className="bg-brand-500 hover:bg-brand-600 text-white">Deploy</button>
+```
+
+Warna semantik punya tiga tingkat dengan peran tetap — `-soft` untuk latar
+badge, nama dasar untuk ikon/border, `-strong` untuk teks di atas latar `-soft`:
+
+```tsx
+<span className="bg-success-soft text-success-strong ring-success/30 ring">Passed</span>
+```
+
+Token tema (`surface`, `surface-raised`, `surface-sunken`, `content`,
+`content-muted`, `edge`) dideklarasikan lewat `@theme inline` di atas CSS
+variable, sehingga `bg-surface` ikut berubah saat tema berganti. Saat ini
+pergantian mengikuti `prefers-color-scheme`; toggle manual menyusul di Issue #15.
+
+**Aturan.**
+
+- Styling ditulis sebagai utility class di file `.tsx`. **Tidak ada** file CSS
+  per-komponen — `npm run check:styles` gagal bila ada `.css` / `.scss` /
+  `.sass` / `.less` / `.styl` selain `src/index.css`. Perlu pengecualian?
+  Daftarkan di `ALLOWLIST` pada `scripts/check-styles.ts` beserta alasannya.
+- Jangan menulis nilai warna atau font mentah di komponen — tambahkan token di
+  `@theme` lalu panggil utility-nya.
+- Nama class harus utuh di source. Tailwind memindai file sebagai teks, jadi
+  `bg-brand-${step}` tidak akan terdeteksi; petakan ke string lengkap seperti
+  `BRAND_SWATCHES` di `src/App.tsx`.
 
 ## Konfigurasi environment
 
@@ -115,7 +166,7 @@ Variabel saat ini:
 | ------------------- | ------- | ------------- | --------------------------------- |
 | `VITE_APP_NAME`     | string  | `AIO DevOps`  | `<title>` + header layout         |
 | `VITE_APP_ENV`      | string  | `development` | Label lingkungan                  |
-| `VITE_DEV_PORT`     | number  | `5173`        | Port `npm run dev`                |
+| `VITE_DEV_PORT`     | number  | `3000`        | Port `npm run dev`                |
 | `VITE_API_BASE_URL` | string  | `/api`        | Base URL backend (Issue #8)       |
 | `VITE_API_TIMEOUT`  | number  | `15000`       | Timeout request (Issue #8)        |
 | `VITE_USE_MOCK`     | boolean | `true`        | Switch mock ↔ API asli (Issue #8) |
@@ -130,6 +181,7 @@ aio-devops/
 │   ├── assets/          gambar & ikon yang di-import
 │   ├── config/          konfigurasi runtime (env)
 │   ├── App.tsx
+│   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx
 │   └── vite-env.d.ts
 ├── env.defaults.ts      sumber tunggal variabel environment

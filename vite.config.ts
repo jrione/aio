@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 import { ENV_DEFAULTS } from './env.defaults.ts'
 
@@ -36,7 +37,7 @@ export default defineConfig(({ mode }) => {
   const env = { ...ENV_DEFAULTS, ...loadEnv(mode, process.cwd(), 'VITE_') }
 
   return {
-    plugins: [react(), htmlEnvDefaults(env)],
+    plugins: [react(), tailwindcss(), htmlEnvDefaults(env)],
     server: {
       port: readPort(env, 'VITE_DEV_PORT'),
       // Gagal terang-terangan kalau port sudah dipakai, daripada diam-diam
