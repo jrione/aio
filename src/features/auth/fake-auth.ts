@@ -7,14 +7,14 @@
  * akses ke status auth wajib lewat `useIsAuthenticated()` / `signIn()` /
  * `signOut()`, tidak ada yang membaca `localStorage` langsung.
  *
- * Statusnya disimpan di localStorage supaya bertahan saat halaman di-refresh —
- * tanpa itu, menguji "akses route terproteksi tanpa auth" jadi merepotkan.
+ * Sejak Issue #9 persistensinya memakai primitif store bersama, sama seperti
+ * tema dan preferensi UI — bukan lagi kode localStorage sendiri. Efeknya bukan
+ * cuma lebih sedikit baris: sinkronisasi antar tab, penanganan mode privat, dan
+ * caching snapshot jadi ditulis sekali dan berlaku sama untuk semuanya.
  */
-import { useSyncExternalStore } from 'react'
-
 import { setAuthToken } from '@/services/auth-token.ts'
-
-const STORAGE_KEY = 'aio.fake-auth'
+import { createPersistedStore } from '@/store/create-store.ts'
+import { STORAGE_KEYS } from '@/store/storage-keys.ts'
 
 /**
  * Token palsu yang dipasang ke header `Authorization`.
@@ -26,62 +26,38 @@ const STORAGE_KEY = 'aio.fake-auth'
  */
 const FAKE_TOKEN = 'fake-token-issue-10-menggantinya'
 
-type Listener = () => void
+const authStore = createPersistedStore<boolean>({
+  key: STORAGE_KEYS.auth,
+  fallback: false,
+  decode: (raw) => raw === 'true',
+})
 
-const listeners = new Set<Listener>()
-
-const emit = () => {
-  for (const listener of listeners) listener()
+/**
+ * Menjaga token sejalan dengan status login — termasuk saat status itu berubah
+ * di tab lain, dan saat halaman baru dimuat.
+ *
+ * Status login bertahan di localStorage, sedangkan token hanya hidup di memori
+ * (lihat `src/services/auth-token.ts`). Keduanya harus kembali sejalan setelah
+ * refresh, jadi penyelarasannya dijalankan sekali di sini saat modul dimuat.
+ * Issue #10 menggantinya dengan pemulihan sesi sungguhan lewat refresh token.
+ */
+const syncToken = () => {
+  setAuthToken(authStore.get() ? FAKE_TOKEN : null)
 }
 
-const subscribe = (listener: Listener) => {
-  listeners.add(listener)
-  // Perubahan dari tab lain juga ikut disiarkan agar status auth tidak
-  // berbeda antar tab.
-  window.addEventListener('storage', listener)
-  return () => {
-    listeners.delete(listener)
-    window.removeEventListener('storage', listener)
-  }
-}
-
-const readSnapshot = (): boolean => {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === 'true'
-  } catch {
-    // Mode privat pada sebagian browser melarang localStorage. Anggap belum
-    // login daripada membuat aplikasi gagal render.
-    return false
-  }
-}
-
-const write = (value: boolean) => {
-  try {
-    if (value) window.localStorage.setItem(STORAGE_KEY, 'true')
-    else window.localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Diabaikan dengan sengaja: status tetap berlaku selama sesi ini lewat emit().
-  }
-  setAuthToken(value ? FAKE_TOKEN : null)
-  emit()
-}
-
-// Status login bertahan di localStorage, sedangkan token hanya hidup di memori.
-// Setelah refresh halaman keduanya harus kembali sejalan, jadi token dipasang
-// ulang saat modul dimuat. Issue #10 menggantinya dengan pemulihan sesi
-// sungguhan lewat refresh token.
-setAuthToken(readSnapshot() ? FAKE_TOKEN : null)
+syncToken()
+authStore.subscribe(syncToken)
 
 /** Status login saat ini. Komponen ikut render ulang saat status berubah. */
 export function useIsAuthenticated(): boolean {
-  return useSyncExternalStore(subscribe, readSnapshot, () => false)
+  return authStore.use()
 }
 
 /** Menandai pengguna sudah login. Diganti autentikasi sungguhan di Issue #10. */
 export function signIn(): void {
-  write(true)
+  authStore.set(true)
 }
 
 export function signOut(): void {
-  write(false)
+  authStore.set(false)
 }

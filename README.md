@@ -61,21 +61,21 @@ pindah sendiri ke port berikutnya.
 
 ## Script npm
 
-| Script                 | Fungsi                                           |
-| ---------------------- | ------------------------------------------------ |
-| `npm run dev`          | Dev server + HMR                                 |
-| `npm run build`        | Type check lalu build produksi ke `dist/`        |
-| `npm run preview`      | Serve hasil build secara lokal                   |
-| `npm run typecheck`    | `tsc --noEmit` saja                              |
-| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding           |
-| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe        |
-| `npm run format`       | Prettier, tulis perubahan                        |
-| `npm run format:check` | Prettier, hanya cek                              |
-| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts` |
-| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron          |
-| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree    |
-| `npm run check:styles` | Gagal bila ada file CSS per-komponen             |
-| `npm run check:layers` | Gagal bila komponen mengimpor HTTP client/mock   |
+| Script                 | Fungsi                                                                  |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`          | Dev server + HMR                                                        |
+| `npm run build`        | Type check lalu build produksi ke `dist/`                               |
+| `npm run preview`      | Serve hasil build secara lokal                                          |
+| `npm run typecheck`    | `tsc --noEmit` saja                                                     |
+| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                  |
+| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                               |
+| `npm run format`       | Prettier, tulis perubahan                                               |
+| `npm run format:check` | Prettier, hanya cek                                                     |
+| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                        |
+| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai |
+| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                           |
+| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                    |
+| `npm run check:layers` | Gagal bila komponen mengimpor HTTP client/mock                          |
 
 ## Styling: Tailwind CSS
 
@@ -112,8 +112,9 @@ badge, nama dasar untuk ikon/border, `-strong` untuk teks di atas latar `-soft`:
 
 Token tema (`surface`, `surface-raised`, `surface-sunken`, `content`,
 `content-muted`, `edge`) dideklarasikan lewat `@theme inline` di atas CSS
-variable, sehingga `bg-surface` ikut berubah saat tema berganti. Saat ini
-pergantian mengikuti `prefers-color-scheme`; toggle manual menyusul di Issue #15.
+variable, sehingga `bg-surface` ikut berubah saat tema berganti — baik mengikuti
+`prefers-color-scheme` maupun lewat pilihan eksplisit pengguna. Lihat bagian
+[Global state](#global-state) untuk cara kerja pemilih temanya.
 
 **Aturan.**
 
@@ -124,8 +125,8 @@ pergantian mengikuti `prefers-color-scheme`; toggle manual menyusul di Issue #15
 - Jangan menulis nilai warna atau font mentah di komponen — tambahkan token di
   `@theme` lalu panggil utility-nya.
 - Nama class harus utuh di source. Tailwind memindai file sebagai teks, jadi
-  `bg-brand-${step}` tidak akan terdeteksi; petakan ke string lengkap seperti
-  `BRAND_SWATCHES` di `src/pages/DashboardPage.tsx`.
+  `bg-${tone}-soft` tidak akan terdeteksi; petakan ke string lengkap seperti
+  `TONE_CLASSES` di `src/components/ui/ToastProvider.tsx`.
 
 ## Linter: oxlint, bukan ESLint
 
@@ -464,6 +465,83 @@ berbeda **wajib** menjawab preflight `OPTIONS` dengan
 terkirim dan gejalanya menyesatkan: halaman menggantung di keadaan memuat tanpa
 satu pun request terlihat di log server.
 
+## Global state
+
+> Status: **terpasang** · Issue #9 · `src/store/`
+
+### Apa yang boleh masuk
+
+Store global hanya untuk empat hal: **sesi pengguna, tema, preferensi UI, dan
+notifikasi**. Selain itu:
+
+| Jenis state        | Rumahnya                   |
+| ------------------ | -------------------------- |
+| Data dari server   | cache TanStack Query (#8)  |
+| State satu halaman | `useState` di halaman itu  |
+| Keadaan sesaat UI  | `useState` di komponen itu |
+
+Batasnya penting justru karena store global selalu terasa seperti jalan
+tercepat. Menyalin data server ke sana melahirkan dua sumber kebenaran yang
+harus terus disamakan; menyimpan keadaan sesaat membuat aplikasi dibuka dengan
+drawer yang menutupi layar tanpa sebab.
+
+### Kenapa bukan Redux, dan kenapa belum Zustand
+
+Yang perlu hidup di luar pohon komponen cuma tiga nilai kecil. Untuk itu,
+`useSyncExternalStore` bawaan React sudah memberi langganan, snapshot yang
+konsisten, dan keamanan terhadap concurrent rendering — seluruh isinya muat di
+`src/store/create-store.ts`.
+
+Redux berarti membawa action, reducer, dan devtools untuk tiga boolean. Zustand
+lebih ringan, tapi tetap satu dependency untuk menulis ulang file yang sudah
+ada. Kalau nanti muncul kebutuhan yang benar-benar rumit — state turunan lintas
+store, middleware, time-travel — Zustand tinggal menggantikan `create-store.ts`
+saja: pemakainya tidak ikut berubah, karena semua akses lewat `store.use()` dan
+`store.set()`.
+
+### Satu mekanisme, bukan tiga
+
+Sebelum Issue #9 ada dua kode localStorage yang ditulis terpisah (status login
+dan sidebar). Keduanya sekarang memakai primitif yang sama, jadi tiga hal ini
+ditulis sekali dan berlaku untuk semuanya:
+
+- **Sinkronisasi antar tab.** Menekan "keluar" di satu tab langsung menendang
+  tab lain ke halaman login, tanpa perlu refresh.
+- **Aman di mode privat.** Browser yang melarang localStorage tidak membuat
+  aplikasi gagal render; preferensinya cuma tidak bertahan.
+- **Nilai asing tidak merusak.** Isi storage bisa berasal dari versi lama atau
+  dari devtools pengguna sendiri; apa pun yang tidak dikenali jatuh ke default.
+
+Seluruh kunci storage terdaftar di `src/store/storage-keys.ts` — sekaligus
+jawaban atas "aplikasi ini menyimpan apa saja di browser saya?".
+
+### Tema
+
+Tiga keadaan, bukan dua: `system` berarti "ikuti pengaturan sistem, sekarang dan
+seterusnya", dan itu tidak bisa diwakili boolean.
+
+- `system` → atribut `data-theme` **dihapus**, media query
+  `prefers-color-scheme` yang berlaku.
+- `light` / `dark` → `data-theme` dipasang dan mengalahkan media query.
+
+Di `src/index.css` blok media query dijaga `:root:not([data-theme='light'])`.
+Penjaga itulah yang membuat "paksa terang di perangkat bersetelan gelap"
+benar-benar bekerja; tanpanya media query tetap menang dan pilihan pengguna
+diabaikan diam-diam — sulit ditemukan lewat membaca kode, karena dua dari tiga
+kombinasinya tetap terlihat benar.
+
+**Tidak ada kedipan tema saat muat.** `vite.config.ts` menyisipkan skrip kecil
+di paling atas `<head>`, sebelum stylesheet, yang memasang `data-theme` dari
+localStorage. Tanpa itu ada kilatan putih setiap kali pengguna bertema gelap
+membuka aplikasi: CSS sudah melukis jauh sebelum bundle JavaScript sempat
+membaca pilihannya, dan React tidak bisa memperbaikinya karena baru berjalan
+setelah lukisan pertama. Skripnya dibangkitkan dari konstanta yang sama dengan
+runtime, jadi nama kunci storage tidak bisa berselisih diam-diam.
+
+> Warna semantik (`-soft` / `-strong` pada badge status) masih memakai nilai
+> terang di kedua tema. Terbaca dan disengaja untuk sekarang; penyesuaiannya
+> bagian Issue #15.
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -528,6 +606,7 @@ aio-devops/
 │   │   ├── http.ts      satu-satunya pemanggil fetch di aplikasi
 │   │   ├── api-error.ts bentuk error tunggal
 │   │   └── query-client.ts  kebijakan cache & retry TanStack Query
+│   ├── store/           state global: tema, preferensi UI, kunci storage
 │   ├── utils/           helper murni tanpa React (cn, page-items)
 │   ├── App.tsx          provider global lalu <RouterProvider>
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
@@ -540,5 +619,4 @@ aio-devops/
 └── vite.config.ts
 ```
 
-Direktori sisanya (`hooks/`, `store/`) menyusul di Issue #9. Rinciannya di
-`ISSUES.md`.
+Rincian issue berikutnya ada di `ISSUES.md`.

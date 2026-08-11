@@ -3,6 +3,38 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 import { ENV_DEFAULTS } from './env.defaults.ts'
+import { STORAGE_KEYS, THEME_ATTRIBUTE } from './src/store/storage-keys.ts'
+
+/**
+ * Menyisipkan skrip tema yang berjalan sebelum halaman pertama kali dilukis.
+ *
+ * Tanpa ini ada kedipan yang nyata: CSS di `<head>` sudah melukis latar terang
+ * (atau gelap, mengikuti setelan sistem) jauh sebelum bundle JavaScript sempat
+ * membaca pilihan pengguna dari localStorage. Pengguna yang memaksa tema gelap
+ * akan melihat kilatan putih setiap kali membuka aplikasi — cacat kecil yang
+ * langsung terlihat semua orang dan mustahil diperbaiki dari dalam React,
+ * karena React baru berjalan setelah lukisan pertama.
+ *
+ * Skripnya dibangkitkan dari konstanta yang sama dengan yang dipakai runtime
+ * (`src/store/storage-keys.ts`), jadi mengganti nama kunci storage tidak bisa
+ * membuat keduanya berselisih diam-diam.
+ */
+const themeBootstrap = (): Plugin => ({
+  name: 'theme-bootstrap',
+  transformIndexHtml: () => [
+    {
+      tag: 'script',
+      injectTo: 'head-prepend',
+      children:
+        `try{var t=localStorage.getItem(${JSON.stringify(STORAGE_KEYS.theme)});` +
+        `if(t==="light"||t==="dark")` +
+        `document.documentElement.setAttribute(${JSON.stringify(THEME_ATTRIBUTE)},t)}` +
+        // Mode privat melarang localStorage. Tema ikut setelan sistem, dan itu
+        // jauh lebih baik daripada halaman yang gagal dimuat.
+        `catch(e){}`,
+    },
+  ],
+})
 
 /**
  * Mengisi placeholder `%VITE_*%` di index.html dengan default dari
@@ -37,7 +69,7 @@ export default defineConfig(({ mode }) => {
   const env = { ...ENV_DEFAULTS, ...loadEnv(mode, process.cwd(), 'VITE_') }
 
   return {
-    plugins: [react(), tailwindcss(), htmlEnvDefaults(env)],
+    plugins: [react(), tailwindcss(), htmlEnvDefaults(env), themeBootstrap()],
     resolve: {
       // Vite membaca sendiri "paths" dari tsconfig.json, jadi alias `@/`
       // cukup didefinisikan sekali di sana — tidak diduplikasi di sini.

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { Icon } from '@/components/Icon.tsx'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher.tsx'
 import { signOut } from '@/features/auth/fake-auth.ts'
 import { LOGIN_ROUTE } from '@/routes/routes.ts'
 
@@ -64,8 +65,17 @@ export function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-lg border border-edge bg-surface-raised shadow-lg"
+          className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-lg border border-edge bg-surface-raised shadow-lg"
         >
+          {/* Di luar `role="menuitem"` dengan sengaja: pemilih tema adalah
+              grup radio, bukan perintah sekali-tekan. Membungkusnya jadi
+              menuitem akan membohongi screen reader soal apa yang terjadi
+              saat ditekan. */}
+          <div className="border-b border-edge p-2">
+            <p className="px-1 pb-1.5 text-xs text-content-muted">Tema</p>
+            <ThemeSwitcher />
+          </div>
+
           <button
             type="button"
             role="menuitem"
