@@ -12,7 +12,19 @@
  */
 import { useSyncExternalStore } from 'react'
 
+import { setAuthToken } from '@/services/auth-token.ts'
+
 const STORAGE_KEY = 'aio.fake-auth'
+
+/**
+ * Token palsu yang dipasang ke header `Authorization`.
+ *
+ * Nilainya tidak berarti apa-apa bagi mock, tapi menyalurkannya lewat
+ * `setAuthToken()` membuat jalur token di `http.ts` benar-benar terpakai sejak
+ * sekarang. Kalau seam-nya baru disambung di Issue #10, kita tidak akan pernah
+ * tahu apakah ia bekerja sampai hari backend sungguhan dipasang.
+ */
+const FAKE_TOKEN = 'fake-token-issue-10-menggantinya'
 
 type Listener = () => void
 
@@ -50,8 +62,15 @@ const write = (value: boolean) => {
   } catch {
     // Diabaikan dengan sengaja: status tetap berlaku selama sesi ini lewat emit().
   }
+  setAuthToken(value ? FAKE_TOKEN : null)
   emit()
 }
+
+// Status login bertahan di localStorage, sedangkan token hanya hidup di memori.
+// Setelah refresh halaman keduanya harus kembali sejalan, jadi token dipasang
+// ulang saat modul dimuat. Issue #10 menggantinya dengan pemulihan sesi
+// sungguhan lewat refresh token.
+setAuthToken(readSnapshot() ? FAKE_TOKEN : null)
 
 /** Status login saat ini. Komponen ikut render ulang saat status berubah. */
 export function useIsAuthenticated(): boolean {

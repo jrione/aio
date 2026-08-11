@@ -75,6 +75,7 @@ pindah sendiri ke port berikutnya.
 | `npm run env:check`    | Gagal bila `.env.example` tidak sinkron          |
 | `npm run check:lang`   | Gagal bila ada file JavaScript di source tree    |
 | `npm run check:styles` | Gagal bila ada file CSS per-komponen             |
+| `npm run check:layers` | Gagal bila komponen mengimpor HTTP client/mock   |
 
 ## Styling: Tailwind CSS
 
@@ -315,9 +316,10 @@ perlu menulis `<h1>` sendiri.
 
 > Status: **terpasang** · Issue #7 · `src/components/ui/`
 
-Dua belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
-`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `EmptyState`, `Pagination`.
-Katalog lengkapnya ada di **`/dev/ui`** — hanya terdaftar saat `npm run dev`.
+Tiga belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
+`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `EmptyState`, `ErrorState`,
+`Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya terdaftar saat
+`npm run dev`.
 
 **Varian dikelola satu tabel**, bukan `if` bertingkat di JSX. Tabelnya ditulis
 dengan `cva`, dan tipe prop-nya diturunkan dari tabel itu lewat `VariantProps`
@@ -362,6 +364,105 @@ const COLUMNS: TableColumn<Deployment>[] = [
   },
 ]
 ```
+
+## Lapisan data
+
+> Status: **terpasang** · Issue #8 · `src/services/`
+
+Alirannya satu arah, tanpa jalan pintas:
+
+```
+komponen  →  hook query  →  service domain  →  http client  →  fetch
+             (*.queries)     (*.service)       (http.ts)      ↑
+                                                              │
+                                              mock transport ─┘  (VITE_USE_MOCK=true)
+```
+
+Komponen tidak pernah menyebut URL endpoint, tidak pernah memegang
+`AbortController`, dan tidak pernah menyentuh `fetch`. Aturan itu bukan
+konvensi tertulis melainkan gate: **`npm run check:layers`** gagal kalau ada
+file di luar `src/services/` yang mengimpor `@/services/http.ts`.
+
+### Mock dipasang di transport, bukan di service
+
+Ini keputusan paling menentukan di lapisan ini. `VITE_USE_MOCK` **tidak**
+memilih antara dua implementasi service:
+
+```ts
+// BUKAN begini — dua implementasi yang perlahan menyimpang
+const service = env.useMock ? mockService : apiService
+```
+
+Yang diganti hanya fungsi `fetch` di dalam `http.ts`. Backend tiruan
+(`src/services/mock/mock-transport.ts`) mencocokkan method + path lalu membalas
+`Response` sungguhan, sehingga seluruh penanganan status, parsing, dan error di
+`http.ts` tetap dilewati sama persis di kedua mode. Konsekuensinya: mematikan
+flag mock tidak menjalankan satu baris kode pun yang belum pernah dijalankan.
+
+Modulnya dimuat lewat `import()` dinamis, jadi data tiruan berakhir di chunk
+terpisah dan tidak pernah diminta browser saat flag-nya mati.
+
+Mock juga sengaja menunda balasan ~320 ms. Tanpa jeda itu setiap request selesai
+di microtask yang sama dan keadaan "memuat" tidak pernah sempat terlihat —
+spinner jadi tidak teruji sampai hari backend sungguhan dipasang.
+
+### Empat keadaan, secara struktural
+
+`<QueryState>` (`src/components/QueryState.tsx`) menerjemahkan satu query jadi
+salah satu dari memuat, gagal, kosong, atau berisi. Halaman tidak menulis satu
+`if` pun:
+
+```tsx
+<QueryState
+  query={activities}
+  isEmpty={(data) => data.items.length === 0}
+  empty={<EmptyState title="Belum ada aktivitas" />}
+>
+  {(data) => <Table columns={COLUMNS} rows={data.items} rowKey={(r) => r.id} />}
+</QueryState>
+```
+
+Saat data lama disegarkan, isinya tetap di tempat — diredupkan dan ditandai
+`aria-busy`, bukan diganti spinner yang membuang isi layar.
+
+### Error punya satu bentuk
+
+`fetch` melempar `TypeError`, timeout melempar `DOMException`, backend membalas
+JSON, proxy yang salah membalas HTML. Empat bentuk untuk satu konsep. `http.ts`
+menormalkan semuanya jadi `ApiError` dengan `kind`, `status`, dan `message` yang
+sudah berbahasa Indonesia dan layak ditampilkan apa adanya.
+
+`ApiError.retryable` yang memutuskan apakah TanStack Query mengulang: 4xx tidak
+diulang (permintaan yang sama akan ditolak dengan alasan yang sama), 5xx dan
+gangguan jaringan diulang. Aturannya hanya ada di satu tempat.
+
+Tipe error-nya didaftarkan global lewat module augmentation di
+`query-client.ts`, jadi `query.error` sudah bertipe `ApiError` di semua komponen
+tanpa satu generic pun ditulis manual.
+
+### Menambah domain baru
+
+1. `src/services/<domain>/<domain>.types.ts` — kontrak data.
+2. `<domain>.service.ts` — path endpoint, satu-satunya tempat URL disebut.
+3. `<domain>.queries.ts` — query key + hook yang dipakai komponen.
+4. `<domain>.mock.ts` — handler tiruan, lalu sambungkan di
+   `src/services/mock/routes.ts`.
+
+Mock dan service mengetik dari file `types.ts` yang sama, jadi data tiruan yang
+menyimpang dari kontrak gagal saat `npm run typecheck`.
+
+### Token & CORS
+
+Token hidup di memori (`src/services/auth-token.ts`), bukan di localStorage:
+apa pun yang tersimpan di sana terbaca skrip mana pun yang berhasil masuk ke
+halaman. Lapisan auth **menulis**, lapisan HTTP **membaca** — arah itu dijaga
+`check:layers` juga.
+
+Karena header `Authorization` membuat request jadi non-simple, backend di origin
+berbeda **wajib** menjawab preflight `OPTIONS` dengan
+`Access-Control-Allow-Headers: Authorization`. Tanpa itu request tidak pernah
+terkirim dan gejalanya menyesatkan: halaman menggantung di keadaan memuat tanpa
+satu pun request terlihat di log server.
 
 ## Konfigurasi environment
 
@@ -421,8 +522,14 @@ aio-devops/
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
+│   ├── services/        lapisan data
+│   │   ├── dashboard/   satu folder per domain: types, service, queries, mock
+│   │   ├── mock/        backend tiruan (transport + daftar route)
+│   │   ├── http.ts      satu-satunya pemanggil fetch di aplikasi
+│   │   ├── api-error.ts bentuk error tunggal
+│   │   └── query-client.ts  kebijakan cache & retry TanStack Query
 │   ├── utils/           helper murni tanpa React (cn, page-items)
-│   ├── App.tsx          hanya memasang <RouterProvider>
+│   ├── App.tsx          provider global lalu <RouterProvider>
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx
 │   └── vite-env.d.ts
@@ -433,5 +540,5 @@ aio-devops/
 └── vite.config.ts
 ```
 
-Direktori sisanya (`services/`, `hooks/`, `store/`, `utils/`) menyusul di
-Issue #8 dan #9. Rinciannya di `ISSUES.md`.
+Direktori sisanya (`hooks/`, `store/`) menyusul di Issue #9. Rinciannya di
+`ISSUES.md`.

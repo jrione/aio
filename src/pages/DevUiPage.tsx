@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge.tsx'
 import { Button } from '@/components/ui/Button.tsx'
 import { Card } from '@/components/ui/Card.tsx'
 import { EmptyState } from '@/components/ui/EmptyState.tsx'
+import { ErrorState } from '@/components/ui/ErrorState.tsx'
 import { Input } from '@/components/ui/Input.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 import { Pagination } from '@/components/ui/Pagination.tsx'
@@ -279,23 +280,36 @@ export default function DevUiPage() {
         </div>
       </Section>
 
-      <Section title="Spinner & EmptyState">
+      <Section
+        title="Spinner, EmptyState & ErrorState"
+        hint="Tiga dari empat keadaan yang dirender <QueryState> di lapisan data."
+      >
         <div className="flex flex-wrap items-center gap-6">
           <Spinner size="sm" />
           <Spinner size="md" />
           <Spinner size="lg" label="Memuat data" />
         </div>
-        <Card bodyClassName="p-0">
-          <EmptyState
-            title="Tidak ada hasil"
-            description="Coba ubah kata kunci atau saring dengan lingkungan lain."
-            action={
-              <Button size="sm" variant="secondary">
-                Reset filter
-              </Button>
-            }
-          />
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card bodyClassName="p-0">
+            <EmptyState
+              title="Tidak ada hasil"
+              description="Coba ubah kata kunci atau saring dengan lingkungan lain."
+              action={
+                <Button size="sm" variant="secondary">
+                  Reset filter
+                </Button>
+              }
+            />
+          </Card>
+          <Card bodyClassName="p-0">
+            <ErrorState
+              description="Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+              onRetry={() => {
+                toast.show({ tone: 'info', title: 'Mencoba lagi…' })
+              }}
+            />
+          </Card>
+        </div>
       </Section>
 
       <Section title="Pagination" hint="Halaman jauh diringkas jadi elipsis.">

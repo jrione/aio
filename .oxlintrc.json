@@ -64,6 +64,18 @@
       }
     },
     {
+      // Batas kepercayaan terhadap backend. `JSON.parse` mengembalikan `any`
+      // dan tidak ada yang bisa membuktikan bentuk balasan server saat compile
+      // — verifikasi sungguhan butuh validator runtime, dan itu keputusan
+      // tersendiri. Aturannya dimatikan hanya untuk file ini supaya kepercayaan
+      // itu terkurung di satu tempat, bukan menyebar ke tiap service. Alasan
+      // lengkapnya ditulis di baris cast-nya.
+      "files": ["src/services/http.ts"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
+    {
       // router.tsx memang mengekspor objek router, bukan komponen — itu
       // memutus Fast Refresh untuk file ini. Tidak jadi masalah: routernya
       // dirakit sekali saat modul dimuat, jadi mengubahnya selalu menuntut

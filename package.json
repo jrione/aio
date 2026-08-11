@@ -18,9 +18,11 @@
     "env:example": "node scripts/env-example.ts",
     "env:check": "node scripts/env-example.ts --check",
     "check:lang": "node scripts/check-language.ts",
-    "check:styles": "node scripts/check-styles.ts"
+    "check:styles": "node scripts/check-styles.ts",
+    "check:layers": "node scripts/check-layers.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.2.8",
