@@ -75,6 +75,19 @@
       }
     },
     {
+      // Modal memasang onClick di <dialog> untuk menutup saat backdrop diklik.
+      // jsx-a11y menganggap <dialog> elemen non-interaktif, jadi aturannya
+      // menuntut listener keyboard pendamping. Di sini tidak diperlukan:
+      // showModal() sudah membuat Escape menutup dialog secara native, dan
+      // ada tombol tutup yang bisa difokus. Handler klik ini murni tambahan
+      // untuk pengguna tetikus, bukan satu-satunya jalan keluar.
+      "files": ["src/components/ui/Modal.tsx"],
+      "rules": {
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
+      }
+    },
+    {
       // scripts/ dijalankan langsung oleh Node, yang tidak meresolusi alias @/.
       // CLI-nya juga memang menulis ke console.
       "files": ["scripts/**/*.ts"],
