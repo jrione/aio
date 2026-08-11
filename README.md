@@ -124,7 +124,7 @@ pergantian mengikuti `prefers-color-scheme`; toggle manual menyusul di Issue #15
   `@theme` lalu panggil utility-nya.
 - Nama class harus utuh di source. Tailwind memindai file sebagai teks, jadi
   `bg-brand-${step}` tidak akan terdeteksi; petakan ke string lengkap seperti
-  `BRAND_SWATCHES` di `src/App.tsx`.
+  `BRAND_SWATCHES` di `src/pages/DashboardPage.tsx`.
 
 ## Linter: oxlint, bukan ESLint
 
@@ -222,8 +222,8 @@ di-load:
   path: '/settings',
   access: 'protected',   // protected | guest | any
   layout: 'app',         // app | auth | bare
-  title: 'Settings',
-  nav: true,
+  title: 'Settings',     // judul sidebar, header, dan tab browser
+  nav: { icon: 'settings-icon', group: 'sistem' },   // atau false
   load: () => import('@/pages/SettingsPage.tsx'),
 }
 ```
@@ -242,6 +242,17 @@ import { ROUTES } from '@/routes/routes.ts'
 <Link to={ROUTES.settings}>Settings</Link>   // ✅ bertipe '/settings'
 <Link to="/setings">Settings</Link>          // ❌ lolos type check, mati saat diklik
 ```
+
+**Menu sidebar.** Field `nav` merangkap konfigurasi menu: isi objek
+`{ icon, group }` untuk memunculkannya di sidebar, atau `false` untuk halaman
+yang tidak bermenu (login, 404). Grup dan urutannya didefinisikan di
+`NAV_GROUPS` pada file yang sama.
+
+Konfigurasi menu sengaja tidak dipisah ke file tersendiri. Begitu dipisah,
+keduanya bisa menyimpang — menu menunjuk path yang sudah dihapus, atau halaman
+baru lupa didaftarkan. Di sini keduanya satu baris yang sama, jadi mustahil
+berbeda. Sidebar tinggal merender `NAV_MENU`, yang sudah dikelompokkan dan
+dibuang grup kosongnya.
 
 **Guard.** `access` diterjemahkan `RouteGuard` jadi satu aturan terpusat:
 `protected` melempar tamu ke `/login` (sambil mengingat tujuan awal, supaya
@@ -268,6 +279,36 @@ dibangun di Issue #14.
 > `npm run dev` dan `npm run preview` karena keduanya sudah punya SPA
 > fallback. Hosting statis produksi perlu diarahkan ke `index.html` juga —
 > dibereskan di Issue #17.
+
+## Layout
+
+> Status: **terpasang** · Issue #6
+
+Tiga kerangka halaman, dipilih lewat field `layout` di tabel route:
+
+| Layout | Dipakai             | Isi                                   |
+| ------ | ------------------- | ------------------------------------- |
+| `app`  | halaman terproteksi | sidebar + header + area konten        |
+| `auth` | halaman login       | kartu di tengah layar, tanpa navigasi |
+| `bare` | halaman 404         | konten polos, tanpa navigasi          |
+
+**Sidebar responsif.** Yang menentukan bentuknya adalah CSS breakpoint, bukan
+JavaScript — tidak ada `useMediaQuery`, jadi tidak ada kedipan saat render
+pertama dan mengubah ukuran jendela tidak memicu render ulang.
+
+| Lebar layar | Sidebar                                                                                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `< md`      | di luar layar; tombol hamburger menggesernya masuk sebagai drawer dengan backdrop. Tertutup sendiri saat pindah halaman, saat backdrop diklik, atau saat Escape ditekan |
+| `≥ md`      | selalu tampak. Tombol di header menciutkannya jadi rel ikon selebar `4rem`; pilihan itu disimpan di localStorage                                                        |
+
+Label menu disembunyikan lewat `md:hidden`, bukan dilepas dari DOM — dengan
+begitu rel ikon di desktop tetap ringkas sementara drawer di mobile tetap
+menampilkan teksnya.
+
+**Judul halaman** diambil `useCurrentRoute()` dari tabel route, bukan dikirim
+sebagai prop oleh tiap halaman. Sumbernya sama dengan label sidebar dan
+`document.title`, jadi ketiganya tidak mungkin berbeda — dan halaman tidak
+perlu menulis `<h1>` sendiri.
 
 ## Konfigurasi environment
 
@@ -323,7 +364,7 @@ aio-devops/
 │   ├── components/      komponen UI yang dipakai lintas halaman
 │   ├── config/          konfigurasi runtime (env)
 │   ├── features/        logika per domain (auth, dst.)
-│   ├── layouts/         kerangka halaman: AppLayout, AuthLayout, BareLayout
+│   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
 │   ├── App.tsx          hanya memasang <RouterProvider>

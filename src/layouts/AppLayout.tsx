@@ -1,65 +1,43 @@
 /**
- * Kerangka halaman untuk area yang sudah login.
+ * Kerangka halaman untuk area yang sudah login: sidebar + header + konten.
  *
- * Versi ini sengaja minimal — cukup untuk membuktikan navigasi client-side
- * berjalan tanpa reload. Sidebar responsif, header lengkap, dan breadcrumb
- * dibangun di Issue #6, menggantikan isi file ini.
+ * Layout ini hanya merangkai; isi menunya ada di `ROUTE_TABLE`, perilaku
+ * bukanya di `useSidebar`, dan judul halamannya di `useCurrentRoute`.
  *
- * Menu diambil dari `NAV_ROUTES`, jadi menambah halaman baru di `ROUTE_TABLE`
- * dengan `nav: true` otomatis memunculkan menunya di sini.
+ * Sidebar dipasang `fixed`, jadi kolom konten yang menggeser dirinya sendiri
+ * lewat padding kiri — bukan flexbox. Dengan begitu sidebar tidak ikut
+ * bergulir bersama isi halaman, dan drawer di mobile bisa menutupi konten
+ * tanpa mengubah tata letaknya.
  */
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { Outlet } from 'react-router'
 
-import { env } from '@/config/env.ts'
-import { signOut } from '@/features/auth/fake-auth.ts'
-import { LOGIN_ROUTE, NAV_ROUTES } from '@/routes/routes.ts'
+import { AppHeader } from '@/layouts/AppHeader.tsx'
+import { AppSidebar } from '@/layouts/AppSidebar.tsx'
+import { useSidebar } from '@/layouts/useSidebar.ts'
 
 export function AppLayout() {
-  const navigate = useNavigate()
+  const { collapsed, mobileOpen, toggleCollapsed, openMobile, closeMobile } = useSidebar()
 
-  const handleSignOut = () => {
-    signOut()
-    void navigate(LOGIN_ROUTE, { replace: true })
-  }
+  // Kelas ditulis utuh agar terbaca pemindai Tailwind.
+  const contentOffset = collapsed ? 'md:pl-16' : 'md:pl-64'
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="border-b border-edge bg-surface-raised">
-        <div className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4">
-          <span className="font-display font-medium text-content">{env.appName}</span>
+    <div className="min-h-svh bg-surface-sunken">
+      <AppSidebar collapsed={collapsed} mobileOpen={mobileOpen} onClose={closeMobile} />
 
-          <nav aria-label="Navigasi utama" className="flex gap-1">
-            {NAV_ROUTES.map((route) => (
-              <NavLink
-                key={route.id}
-                to={route.path}
-                end={route.path === '/'}
-                className={({ isActive }) =>
-                  `rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                    isActive
-                      ? 'bg-brand-500 text-white'
-                      : 'text-content-muted hover:bg-surface-sunken hover:text-content'
-                  }`
-                }
-              >
-                {route.title}
-              </NavLink>
-            ))}
-          </nav>
+      <div className={`flex min-h-svh flex-col transition-[padding] duration-200 ${contentOffset}`}>
+        <AppHeader
+          collapsed={collapsed}
+          onOpenMobile={openMobile}
+          onToggleCollapsed={toggleCollapsed}
+        />
 
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="ml-auto rounded-lg border border-edge px-3 py-1.5 text-sm text-content-muted transition-colors hover:border-danger hover:text-danger"
-          >
-            Keluar
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl grow px-6 py-10">
-        <Outlet />
-      </main>
+        <main className="grow p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-5xl">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
