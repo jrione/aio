@@ -53,13 +53,25 @@
       }
     },
     {
-      // Kedua file ini membangun objeknya secara dinamis dari ENV_SCHEMA,
-      // sementara bentuk akhirnya sudah dijamin oleh tipe turunan di atasnya.
-      // Cast-nya disengaja dan sudah dijelaskan di tempatnya masing-masing;
-      // aturan type-aware ini tidak bisa melihat jaminan itu.
-      "files": ["src/config/env.ts", "env.defaults.ts"],
+      // File-file ini membangun objeknya secara dinamis dari sebuah tabel
+      // (ENV_SCHEMA, ROUTE_TABLE), sementara bentuk akhirnya sudah dijamin
+      // oleh tipe turunan di atasnya. Cast-nya disengaja dan sudah dijelaskan
+      // di tempatnya masing-masing; aturan type-aware ini tidak bisa melihat
+      // jaminan itu.
+      "files": ["src/config/env.ts", "env.defaults.ts", "src/routes/routes.ts"],
       "rules": {
         "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
+    {
+      // router.tsx memang mengekspor objek router, bukan komponen — itu
+      // memutus Fast Refresh untuk file ini. Tidak jadi masalah: routernya
+      // dirakit sekali saat modul dimuat, jadi mengubahnya selalu menuntut
+      // reload penuh. Halaman-halamannya sendiri tetap ber-Fast Refresh
+      // karena tinggal di file terpisah dan dimuat lewat lazy().
+      "files": ["src/routes/router.tsx"],
+      "rules": {
+        "react/only-export-components": "off"
       }
     },
     {
