@@ -2,7 +2,8 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
-import { env } from './config/env.ts'
+import { Icon } from '@/components/Icon.tsx'
+import { env } from '@/config/env.ts'
 
 /**
  * Halaman sementara. Isinya sekaligus jadi bukti hidup bahwa design token di
@@ -81,20 +82,12 @@ const STATUS_BADGES: StatusBadge[] = [
   { label: 'info', className: 'bg-info-soft text-info-strong ring-info/30' },
 ]
 
-function Icon({ name, className = 'size-5' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} role="presentation" aria-hidden="true">
-      <use href={`/icons.svg#${name}`} />
-    </svg>
-  )
-}
-
 function InfoCard({ icon, title, subtitle, links }: InfoCardData) {
   return (
-    <section className="border-edge bg-surface-raised rounded-xl border p-6 text-left">
-      <Icon name={icon} className="text-brand-500 size-7" />
-      <h2 className="text-content font-display mt-4 text-xl font-medium">{title}</h2>
-      <p className="text-content-muted mt-1 text-sm">{subtitle}</p>
+    <section className="rounded-xl border border-edge bg-surface-raised p-6 text-left">
+      <Icon name={icon} className="size-7 text-brand-500" />
+      <h2 className="mt-4 font-display text-xl font-medium text-content">{title}</h2>
+      <p className="mt-1 text-sm text-content-muted">{subtitle}</p>
       <ul className="mt-4 flex flex-wrap gap-2">
         {links.map(({ href, label, icon: linkIcon, image }) => (
           <li key={href}>
@@ -102,7 +95,7 @@ function InfoCard({ icon, title, subtitle, links }: InfoCardData) {
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="border-edge text-content hover:border-brand-500 hover:text-brand-600 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm text-content transition-colors hover:border-brand-500 hover:text-brand-600"
             >
               {linkIcon ? <Icon name={linkIcon} /> : <img className="size-5" src={image} alt="" />}
               {label}
@@ -116,27 +109,27 @@ function InfoCard({ icon, title, subtitle, links }: InfoCardData) {
 
 function TokenShowcase() {
   return (
-    <section className="border-edge bg-surface-raised rounded-xl border p-6 text-left">
-      <h2 className="text-content font-display text-xl font-medium">Design token</h2>
-      <p className="text-content-muted mt-1 text-sm">
+    <section className="rounded-xl border border-edge bg-surface-raised p-6 text-left">
+      <h2 className="font-display text-xl font-medium text-content">Design token</h2>
+      <p className="mt-1 text-sm text-content-muted">
         Didefinisikan sekali di{' '}
-        <code className="bg-surface-sunken rounded px-1 py-0.5">src/index.css</code>, dipakai lewat
+        <code className="rounded bg-surface-sunken px-1 py-0.5">src/index.css</code>, dipakai lewat
         utility class.
       </p>
 
-      <h3 className="text-content-muted mt-6 text-xs font-semibold tracking-wider uppercase">
+      <h3 className="mt-6 text-xs font-semibold tracking-wider text-content-muted uppercase">
         Brand
       </h3>
       <ul className="mt-2 flex flex-wrap gap-2">
         {BRAND_STEPS.map((step) => (
           <li key={step} className="text-center">
-            <div className={`${BRAND_SWATCHES[step]} border-edge size-12 rounded-lg border`} />
-            <span className="text-content-muted mt-1 block font-mono text-xs">{step}</span>
+            <div className={`${BRAND_SWATCHES[step]} size-12 rounded-lg border border-edge`} />
+            <span className="mt-1 block font-mono text-xs text-content-muted">{step}</span>
           </li>
         ))}
       </ul>
 
-      <h3 className="text-content-muted mt-6 text-xs font-semibold tracking-wider uppercase">
+      <h3 className="mt-6 text-xs font-semibold tracking-wider text-content-muted uppercase">
         Semantik
       </h3>
       <ul className="mt-2 flex flex-wrap gap-2">
@@ -165,22 +158,22 @@ function App() {
         <img src={viteLogo} className="absolute bottom-2 size-8" alt="Logo Vite" />
       </div>
 
-      <h1 className="text-content font-display mt-8 text-4xl font-medium tracking-tight sm:text-5xl">
+      <h1 className="mt-8 font-display text-4xl font-medium tracking-tight text-content sm:text-5xl">
         {env.appName}
       </h1>
-      <p className="text-content-muted mt-3">
+      <p className="mt-3 text-content-muted">
         Edit{' '}
-        <code className="bg-surface-sunken rounded px-1.5 py-0.5 font-mono text-sm">
+        <code className="rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-sm">
           src/App.tsx
         </code>{' '}
         lalu simpan untuk menguji{' '}
-        <code className="bg-surface-sunken rounded px-1.5 py-0.5 font-mono text-sm">HMR</code>
+        <code className="rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-sm">HMR</code>
       </p>
 
       <button
         type="button"
         onClick={() => setCount((current) => current + 1)}
-        className="bg-brand-500 hover:bg-brand-600 mt-6 rounded-lg px-4 py-2 font-medium text-white transition-colors"
+        className="mt-6 rounded-lg bg-brand-500 px-4 py-2 font-medium text-white transition-colors hover:bg-brand-600"
       >
         Count is {count}
       </button>

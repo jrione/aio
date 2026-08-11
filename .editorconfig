@@ -1,0 +1,29 @@
+# Aturan dasar editor. Prettier MEMBACA file ini dan mewarisi nilainya, jadi
+# indentasi, akhir baris, dan lebar baris cukup ditulis sekali di sini —
+# jangan diduplikasi di .prettierrc.json.
+#
+# Pemetaannya: indent_style → useTabs, indent_size → tabWidth,
+# max_line_length → printWidth, end_of_line → endOfLine.
+#
+# .prettierrc.json hanya memuat hal yang tidak punya padanan di EditorConfig
+# (semi, singleQuote, trailingComma, arrowParens) dan konfigurasi plugin.
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+max_line_length = 100
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Di Markdown, dua spasi di akhir baris adalah line break yang disengaja.
+[*.md]
+trim_trailing_whitespace = false
+
+# File .env dibaca banyak tool; biarkan apa adanya.
+[.env*]
+insert_final_newline = false
+trim_trailing_whitespace = false

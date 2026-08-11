@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 import { ENV_DEFAULTS } from './env.defaults.ts'
 
@@ -37,7 +38,9 @@ export default defineConfig(({ mode }) => {
   const env = { ...ENV_DEFAULTS, ...loadEnv(mode, process.cwd(), 'VITE_') }
 
   return {
-    plugins: [react(), tailwindcss(), htmlEnvDefaults(env)],
+    // tsconfigPaths membaca "paths" dari tsconfig.json, jadi alias `@/`
+    // cukup didefinisikan sekali di sana — tidak diduplikasi di sini.
+    plugins: [tsconfigPaths(), react(), tailwindcss(), htmlEnvDefaults(env)],
     server: {
       port: readPort(env, 'VITE_DEV_PORT'),
       // Gagal terang-terangan kalau port sudah dipakai, daripada diam-diam

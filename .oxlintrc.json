@@ -1,8 +1,84 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "oxc"],
+
+  // Plugin yang aktif. oxlint mengimplementasikan ulang plugin-plugin ESLint
+  // ini secara native, termasuk react-hooks (di dalam "react") dan
+  // @typescript-eslint (di dalam "typescript"). Lihat bagian Linter di README
+  // untuk alasan project ini memakai oxlint alih-alih ESLint.
+  "plugins": ["eslint", "oxc", "typescript", "react", "import", "jsx-a11y", "promise", "node"],
+
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+
+    // JSX transform baru (jsx: react-jsx di tsconfig) tidak butuh React di scope.
+    "react/react-in-jsx-scope": "off",
+
+    // Alias @/ wajib untuk impor lintas-direktori; path relatif hanya boleh
+    // menunjuk file tetangga di folder yang sama.
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../*", "../**"],
+            "message": "Impor lintas-direktori memakai alias @/ — lihat bagian Path alias di README."
+          }
+        ]
+      }
+    ]
+  },
+
+  "overrides": [
+    {
+      // Entry point memang mengimpor CSS demi efek sampingnya (Issue #3).
+      "files": ["src/main.tsx"],
+      "rules": {
+        "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      // env.defaults.ts tinggal di root, di luar jangkauan alias @/ yang
+      // menunjuk src/. Dua file inilah satu-satunya yang boleh menjangkaunya.
+      "files": ["src/config/env.ts", "src/vite-env.d.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      // Kedua file ini membangun objeknya secara dinamis dari ENV_SCHEMA,
+      // sementara bentuk akhirnya sudah dijamin oleh tipe turunan di atasnya.
+      // Cast-nya disengaja dan sudah dijelaskan di tempatnya masing-masing;
+      // aturan type-aware ini tidak bisa melihat jaminan itu.
+      "files": ["src/config/env.ts", "env.defaults.ts"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
+    {
+      // scripts/ dijalankan langsung oleh Node, yang tidak meresolusi alias @/.
+      // CLI-nya juga memang menulis ke console.
+      "files": ["scripts/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": "off",
+        "no-console": "off"
+      }
+    },
+    {
+      // vite.config.ts & env.defaults.ts dimuat di luar konteks alias.
+      "files": ["vite.config.ts", "env.defaults.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+
+  "ignorePatterns": ["dist", "node_modules", "coverage"]
 }
