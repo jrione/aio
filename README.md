@@ -172,8 +172,9 @@ import { env } from '@/config/env.ts'
 
 Didefinisikan **sekali** di `compilerOptions.paths` pada `tsconfig.json`. Dari
 sana: TypeScript dan editor membacanya langsung, oxlint menemukannya sendiri,
-dan Vite mendapatkannya lewat plugin `vite-tsconfig-paths`. Tidak ada daftar
-alias kedua di `vite.config.ts`.
+dan Vite membacanya lewat `resolve.tsconfigPaths: true` — opsi bawaan sejak
+Vite 8, menggantikan plugin `vite-tsconfig-paths`. Tidak ada daftar alias kedua
+di `vite.config.ts`.
 
 **Batasannya — ini penting.** Alias hanya berlaku untuk file di `src/`:
 

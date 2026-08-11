@@ -8,9 +8,9 @@
     "jsx": "react-jsx",
     "types": ["node", "vite/client"],
 
-    /* Sumber tunggal path alias. Dibaca TypeScript, editor, oxlint, dan —
-       lewat plugin vite-tsconfig-paths — Vite. Jangan menulis ulang daftar
-       alias di vite.config.ts.
+    /* Sumber tunggal path alias. Dibaca TypeScript, editor, oxlint, dan Vite
+       (lewat `resolve.tsconfigPaths` di vite.config.ts). Jangan menulis ulang
+       daftar alias di vite.config.ts.
 
        Alias hanya berlaku untuk file di src/. File di scripts/ dijalankan
        langsung oleh Node, yang tidak membaca "paths" di sini. */
