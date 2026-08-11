@@ -207,6 +207,68 @@ stylesheet lewat `"tailwindStylesheet": "./src/index.css"` supaya token custom
 ikut dikenali. Urutan class tidak perlu diperdebatkan di review — cukup jalankan
 `npm run format`.
 
+## Routing
+
+> Status: **terpasang** · Issue #5 · React Router 8
+
+`src/routes/routes.ts` adalah **satu-satunya** tempat route didaftarkan. Satu
+entri di `ROUTE_TABLE` sekaligus menentukan path, siapa yang boleh membukanya,
+kerangka halamannya, judul tab, apakah muncul di menu, dan chunk mana yang
+di-load:
+
+```ts
+{
+  id: 'settings',
+  path: '/settings',
+  access: 'protected',   // protected | guest | any
+  layout: 'app',         // app | auth | bare
+  title: 'Settings',
+  nav: true,
+  load: () => import('@/pages/SettingsPage.tsx'),
+}
+```
+
+Menambah halaman = tambah satu entri, lalu buat file halamannya di
+`src/pages/`. Router, guard, menu navigasi, judul tab, dan pemecahan chunk
+ikut menyesuaikan sendiri.
+
+**Jangan menulis path mentah** di komponen. Pakai `ROUTES`, yang bertipe
+literal sehingga salah ketik tertangkap saat type check:
+
+```tsx
+import { Link } from 'react-router'
+import { ROUTES } from '@/routes/routes.ts'
+
+<Link to={ROUTES.settings}>Settings</Link>   // ✅ bertipe '/settings'
+<Link to="/setings">Settings</Link>          // ❌ lolos type check, mati saat diklik
+```
+
+**Guard.** `access` diterjemahkan `RouteGuard` jadi satu aturan terpusat:
+`protected` melempar tamu ke `/login` (sambil mengingat tujuan awal, supaya
+dikembalikan ke sana setelah login), `guest` melempar yang sudah login ke
+dashboard, `any` dibiarkan lewat. Status auth-nya masih palsu —
+`src/features/auth/fake-auth.ts`, satu flag di localStorage — dan diganti
+autentikasi sungguhan di Issue #10. Komponen tidak pernah membaca flag itu
+langsung; semuanya lewat `useIsAuthenticated()`.
+
+**Lazy loading.** Setiap halaman jadi chunk terpisah karena `load` memakai
+`() => import(...)`. Terlihat di output `npm run build`:
+
+```
+dist/assets/NotFoundPage-*.js    0.67 kB
+dist/assets/LoginPage-*.js       0.96 kB
+dist/assets/SettingsPage-*.js    1.01 kB
+dist/assets/DashboardPage-*.js   2.15 kB
+```
+
+Selagi chunk-nya diunduh, `RouteFallback` yang tampil. Skeleton yang benar
+dibangun di Issue #14.
+
+> Deep link (`/settings` diketik langsung di address bar) berfungsi di
+> `npm run dev` dan `npm run preview` karena keduanya sudah punya SPA
+> fallback. Hosting statis produksi perlu diarahkan ke `index.html` juga —
+> dibereskan di Issue #17.
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -260,7 +322,11 @@ aio-devops/
 │   ├── assets/          gambar & ikon yang di-import
 │   ├── components/      komponen UI yang dipakai lintas halaman
 │   ├── config/          konfigurasi runtime (env)
-│   ├── App.tsx
+│   ├── features/        logika per domain (auth, dst.)
+│   ├── layouts/         kerangka halaman: AppLayout, AuthLayout, BareLayout
+│   ├── pages/           satu file per route, di-load lewat lazy()
+│   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
+│   ├── App.tsx          hanya memasang <RouterProvider>
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx
 │   └── vite-env.d.ts
@@ -271,6 +337,5 @@ aio-devops/
 └── vite.config.ts
 ```
 
-Struktur target berbasis fitur (`layouts/`, `features/`, `routes/`,
-`services/`, `hooks/`, `store/`, `utils/`) dibangun bertahap mulai Issue #5.
-Rinciannya di `ISSUES.md`.
+Direktori sisanya (`services/`, `hooks/`, `store/`, `utils/`) menyusul di
+Issue #8 dan #9. Rinciannya di `ISSUES.md`.
