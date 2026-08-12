@@ -38,7 +38,7 @@ const toRouteObject = (route: RouteDefinition): RouteObject => {
     ...(route.path === '/' ? { index: true } : { path: route.path }),
     element: (
       <DocumentTitle title={route.title}>
-        <RouteGuard access={route.access}>
+        <RouteGuard access={route.access} permission={route.permission}>
           <Suspense fallback={<RouteFallback />}>
             <Page />
           </Suspense>
