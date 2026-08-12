@@ -11,22 +11,28 @@
  * `src/services/mock/mock-transport.ts` untuk alasannya.
  */
 import type {
-  ActivityFilter,
   Activity,
+  ActivityFilter,
+  DashboardFilter,
   DashboardSummary,
+  DeploymentTrend,
+  TrendFilter,
 } from '@/services/dashboard/dashboard.types.ts'
 import { http } from '@/services/http.ts'
 import type { Paginated } from '@/services/paginated.ts'
 
 export const dashboardService = {
-  getSummary: (signal?: AbortSignal) =>
-    http.get<DashboardSummary>('/dashboard/summary', { signal }),
+  getSummary: ({ environment }: DashboardFilter, signal?: AbortSignal) =>
+    http.get<DashboardSummary>('/dashboard/summary', { query: { environment }, signal }),
 
-  listActivities: ({ page, pageSize, status }: ActivityFilter, signal?: AbortSignal) =>
+  getTrend: ({ range, environment }: TrendFilter, signal?: AbortSignal) =>
+    http.get<DeploymentTrend>('/dashboard/trend', { query: { range, environment }, signal }),
+
+  listActivities: ({ page, pageSize, status, environment }: ActivityFilter, signal?: AbortSignal) =>
     http.get<Paginated<Activity>>('/dashboard/activities', {
       // Entri `undefined` dibuang `http.ts`, jadi filter kosong tidak
       // mengirimkan `?status=undefined` ke server.
-      query: { page, pageSize, status },
+      query: { page, pageSize, status, environment },
       signal,
     }),
 }
