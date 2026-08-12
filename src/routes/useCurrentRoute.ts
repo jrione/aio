@@ -7,15 +7,15 @@
  */
 import { matchPath, useLocation } from 'react-router'
 
-import { ROUTE_TABLE, type RouteDefinition } from '@/routes/routes.ts'
+import { ACTIVE_ROUTES, type RouteDefinition } from '@/routes/routes.ts'
 
 export function useCurrentRoute(): RouteDefinition {
   const { pathname } = useLocation()
 
-  // Urutan ROUTE_TABLE menentukan pemenangnya, dan entri '*' ada di paling
+  // Urutan ACTIVE_ROUTES menentukan pemenangnya, dan entri '*' ada di paling
   // bawah — jadi pencarian ini selalu berakhir di route 404 bila tidak ada
   // yang cocok, sama seperti yang dilakukan React Router sendiri.
-  const matched = ROUTE_TABLE.find((route) => matchPath(route.path, pathname) !== null)
+  const matched = ACTIVE_ROUTES.find((route) => matchPath(route.path, pathname) !== null)
 
   if (!matched) {
     throw new Error(`Tidak ada route yang cocok untuk "${pathname}" — entri '*' hilang?`)

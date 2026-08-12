@@ -11,6 +11,8 @@
  */
 import { useLocation, useNavigate } from 'react-router'
 
+import { Button } from '@/components/ui/Button.tsx'
+import { Card } from '@/components/ui/Card.tsx'
 import { signIn } from '@/features/auth/fake-auth.ts'
 import type { RedirectState } from '@/routes/RouteGuard.tsx'
 import { HOME_ROUTE } from '@/routes/routes.ts'
@@ -30,25 +32,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="rounded-xl border border-edge bg-surface-raised p-6 text-center">
-      <h1 className="font-display text-xl font-medium text-content">Masuk</h1>
-      <p className="mt-2 text-sm text-content-muted">
-        Autentikasi sungguhan dibangun di Issue #10. Tombol di bawah memakai flag auth palsu.
-      </p>
-
-      <button
-        type="button"
-        onClick={handleSignIn}
-        className="mt-6 w-full rounded-lg bg-brand-500 px-4 py-2 font-medium text-white transition-colors hover:bg-brand-600"
-      >
+    <Card
+      title="Masuk"
+      description="Autentikasi sungguhan dibangun di Issue #10. Tombol di bawah memakai flag auth palsu."
+    >
+      <Button block onClick={handleSignIn}>
         Masuk sebagai pengguna contoh
-      </button>
+      </Button>
 
       {destination !== HOME_ROUTE && (
-        <p className="mt-4 text-xs text-content-muted">
+        <p className="mt-4 text-center text-xs text-content-muted">
           Setelah masuk kamu diarahkan ke <code className="font-mono">{destination}</code>
         </p>
       )}
-    </div>
+    </Card>
   )
 }

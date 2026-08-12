@@ -310,6 +310,58 @@ sebagai prop oleh tiap halaman. Sumbernya sama dengan label sidebar dan
 `document.title`, jadi ketiganya tidak mungkin berbeda — dan halaman tidak
 perlu menulis `<h1>` sendiri.
 
+## Design system
+
+> Status: **terpasang** · Issue #7 · `src/components/ui/`
+
+Dua belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
+`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `EmptyState`, `Pagination`.
+Katalog lengkapnya ada di **`/dev/ui`** — hanya terdaftar saat `npm run dev`.
+
+**Varian dikelola satu tabel**, bukan `if` bertingkat di JSX. Tabelnya ditulis
+dengan `cva`, dan tipe prop-nya diturunkan dari tabel itu lewat `VariantProps`
+— menambah varian cukup satu baris, tanpa menyentuh tipe:
+
+```tsx
+<Button variant="danger" size="lg" loading>Hapus</Button>
+<Badge tone="success" dot>passed</Badge>
+```
+
+**`className` selalu menang.** Semua komponen menggabungkan kelas lewat
+`cn()` (`src/utils/cn.ts`), yang memakai `tailwind-merge`. Tanpa itu,
+`<Button className="px-8">` hanya menghasilkan `px-4 px-8` dan yang menang
+ditentukan urutan di file CSS, bukan niat pemanggil.
+
+**Tautan yang tampil sebagai tombol** memakai tabel varian yang sama, bukan
+kelas yang diketik ulang:
+
+```tsx
+<Link to={ROUTES.settings} className={buttonVariants({ variant: 'secondary' })}>
+  Lihat konfigurasi
+</Link>
+```
+
+**Belum ada library headless.** `Modal` dibangun di atas `<dialog>` +
+`showModal()` bawaan browser, yang sudah memberi focus trap sungguhan,
+Escape, dan top layer tanpa perang `z-index`. `Select` memakai `<select>`
+bawaan, yang benar soal keyboard, screen reader, dan pemilih native di
+mobile. Library headless baru layak ditambah kalau nanti butuh combobox atau
+menu bertingkat — dan kedua komponen di atas tidak perlu ikut berubah.
+
+**Kolom tabel adalah data**, bukan JSX, sehingga tabel di seluruh aplikasi
+tidak menyimpang satu sama lain:
+
+```tsx
+const COLUMNS: TableColumn<Deployment>[] = [
+  { key: 'service', header: 'Service', render: (row) => row.service },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (row) => <Badge tone={row.status}>{row.status}</Badge>,
+  },
+]
+```
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -361,12 +413,14 @@ aio-devops/
 ├── scripts/             utilitas dev (dijalankan langsung oleh Node)
 ├── src/
 │   ├── assets/          gambar & ikon yang di-import
-│   ├── components/      komponen UI yang dipakai lintas halaman
+│   ├── components/      komponen lintas halaman
+│   │   └── ui/          design system: Button, Table, Modal, …
 │   ├── config/          konfigurasi runtime (env)
 │   ├── features/        logika per domain (auth, dst.)
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
+│   ├── utils/           helper murni tanpa React (cn, page-items)
 │   ├── App.tsx          hanya memasang <RouterProvider>
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx

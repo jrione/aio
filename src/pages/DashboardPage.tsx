@@ -1,34 +1,36 @@
 /**
  * Halaman dashboard (route `/`).
  *
- * Isinya masih sementara: petak design token yang sebelumnya tinggal di
- * `App.tsx`, dipindah ke sini karena `App.tsx` kini hanya memasang router.
- * Widget dashboard sungguhan dibangun di Issue #11.
+ * Isinya masih sementara — widget sungguhan dibangun di Issue #11. Yang ada
+ * sekarang cukup untuk menunjukkan kartu, badge, dan keadaan kosong berdiri di
+ * atas design token yang sama.
  */
 import { Link } from 'react-router'
 
+import { Badge } from '@/components/ui/Badge.tsx'
+import { buttonVariants } from '@/components/ui/button-variants.ts'
+import { Card } from '@/components/ui/Card.tsx'
+import { EmptyState } from '@/components/ui/EmptyState.tsx'
 import { ROUTES } from '@/routes/routes.ts'
 
-/** Tingkat pada skala brand yang ditampilkan di petak token. */
-const BRAND_STEPS = [100, 300, 500, 700, 900] as const
-
-/**
- * Kelas Tailwind ditulis lengkap (bukan dirakit lewat template string) karena
- * Tailwind memindai source sebagai teks — `bg-brand-${step}` tidak akan terdeteksi.
- */
-const BRAND_SWATCHES: Record<(typeof BRAND_STEPS)[number], string> = {
-  100: 'bg-brand-100',
-  300: 'bg-brand-300',
-  500: 'bg-brand-500',
-  700: 'bg-brand-700',
-  900: 'bg-brand-900',
+interface Stat {
+  id: string
+  label: string
+  value: string
+  tone: 'success' | 'warning' | 'danger' | 'info'
+  status: string
 }
 
-const STATUS_BADGES = [
-  { label: 'success', className: 'bg-success-soft text-success-strong ring-success/30' },
-  { label: 'warning', className: 'bg-warning-soft text-warning-strong ring-warning/30' },
-  { label: 'danger', className: 'bg-danger-soft text-danger-strong ring-danger/30' },
-  { label: 'info', className: 'bg-info-soft text-info-strong ring-info/30' },
+const STATS: Stat[] = [
+  {
+    id: 'deployments',
+    label: 'Deployment hari ini',
+    value: '12',
+    tone: 'success',
+    status: 'sehat',
+  },
+  { id: 'pipelines', label: 'Pipeline berjalan', value: '3', tone: 'info', status: 'berjalan' },
+  { id: 'incidents', label: 'Insiden terbuka', value: '1', tone: 'warning', status: 'perlu cek' },
 ]
 
 export default function DashboardPage() {
@@ -37,48 +39,38 @@ export default function DashboardPage() {
       {/* Judul halaman sudah ditampilkan AppHeader dari ROUTE_TABLE, jadi
           halaman tidak mengulanginya sebagai <h1> kedua. */}
       <p className="text-content-muted">
-        Halaman ini terproteksi. Widget aslinya dibangun di Issue #11 — sementara ini isinya petak
-        design system dari Issue #3.
+        Angka di bawah masih contoh. Widget yang membaca data sungguhan dibangun di Issue #11,
+        setelah lapisan API di Issue #8 siap.
       </p>
 
-      <section className="rounded-xl border border-edge bg-surface-raised p-6">
-        <h2 className="font-display text-xl font-medium text-content">Design token</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {STATS.map((stat) => (
+          <Card key={stat.id}>
+            <p className="text-sm text-content-muted">{stat.label}</p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <span className="font-display text-3xl font-medium text-content">{stat.value}</span>
+              <Badge tone={stat.tone} dot>
+                {stat.status}
+              </Badge>
+            </div>
+          </Card>
+        ))}
+      </div>
 
-        <h3 className="mt-6 text-xs font-semibold tracking-wider text-content-muted uppercase">
-          Brand
-        </h3>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {BRAND_STEPS.map((step) => (
-            <li key={step} className="text-center">
-              <div className={`${BRAND_SWATCHES[step]} size-12 rounded-lg border border-edge`} />
-              <span className="mt-1 block font-mono text-xs text-content-muted">{step}</span>
-            </li>
-          ))}
-        </ul>
-
-        <h3 className="mt-6 text-xs font-semibold tracking-wider text-content-muted uppercase">
-          Semantik
-        </h3>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {STATUS_BADGES.map(({ label, className }) => (
-            <li key={label}>
-              <span
-                className={`${className} inline-flex rounded-full px-3 py-1 font-mono text-xs font-medium ring`}
-              >
-                {label}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <p className="text-sm text-content-muted">
-        Buka{' '}
-        <Link to={ROUTES.settings} className="text-brand-600 underline underline-offset-4">
-          Settings
-        </Link>{' '}
-        untuk melihat perpindahan halaman tanpa reload.
-      </p>
+      <Card title="Aktivitas terbaru" bodyClassName="p-0">
+        <EmptyState
+          title="Belum ada aktivitas"
+          description="Riwayat deployment dan pipeline muncul di sini begitu lapisan API tersambung."
+          action={
+            <Link
+              to={ROUTES.settings}
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+            >
+              Lihat konfigurasi
+            </Link>
+          }
+        />
+      </Card>
     </div>
   )
 }

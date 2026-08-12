@@ -6,6 +6,7 @@
  */
 import { Link } from 'react-router'
 
+import { buttonVariants } from '@/components/ui/button-variants.ts'
 import { HOME_ROUTE } from '@/routes/routes.ts'
 
 export default function NotFoundPage() {
@@ -17,10 +18,9 @@ export default function NotFoundPage() {
       </h1>
       <p className="mt-3 text-content-muted">URL yang kamu buka tidak terdaftar di aplikasi ini.</p>
 
-      <Link
-        to={HOME_ROUTE}
-        className="mt-6 inline-flex rounded-lg bg-brand-500 px-4 py-2 font-medium text-white transition-colors hover:bg-brand-600"
-      >
+      {/* Ini navigasi, jadi elemennya <Link> — tampilannya saja yang meminjam
+          tabel varian tombol supaya tidak menyimpang dari tombol lain. */}
+      <Link to={HOME_ROUTE} className={`mt-6 ${buttonVariants()}`}>
         Kembali ke dashboard
       </Link>
     </div>

@@ -1,14 +1,20 @@
 /**
- * Akar aplikasi. Sejak Issue #5 tugasnya tinggal satu: memasang router.
+ * Akar aplikasi: provider global, lalu router.
  *
- * Seluruh isi halaman pindah ke `src/pages/`, dan kerangkanya ke
- * `src/layouts/`. Provider global (state, tema, query client) menyusul di
- * Issue #9 dan dipasang membungkus `<RouterProvider>` di sini.
+ * Provider ditaruh di luar `<RouterProvider>` supaya state-nya bertahan
+ * melintasi perpindahan halaman — toast yang dipicu sebelum navigasi tetap
+ * terlihat setelah halaman berganti. Provider berikutnya (state global,
+ * query client) menyusul di Issue #9 dan menumpuk di sini.
  */
 import { RouterProvider } from 'react-router'
 
+import { ToastProvider } from '@/components/ui/ToastProvider.tsx'
 import { router } from '@/routes/router.tsx'
 
 export default function App() {
-  return <RouterProvider router={router} />
+  return (
+    <ToastProvider>
+      <RouterProvider router={router} />
+    </ToastProvider>
+  )
 }
