@@ -13,8 +13,17 @@
  * beberapa tool di-host di satu domain) tidak saling mengganggu.
  */
 export const STORAGE_KEYS = {
-  /** Status login sementara. Diganti sesi sungguhan di Issue #10. */
-  auth: 'aio.fake-auth',
+  /**
+   * Penanda sesi: id pengguna yang sedang masuk, atau string kosong.
+   *
+   * **Bukan** kredensial, dan sengaja begitu — token tidak pernah menyentuh
+   * localStorage (lihat `src/services/auth-token.ts`). Gunanya cuma dua, dan
+   * keduanya butuh sesuatu yang bertahan melewati reload: memberi tahu tab lain
+   * bahwa sesi baru saja dimulai atau diakhiri, dan memberi tahu aplikasi saat
+   * dimuat apakah ada sesi yang layak dicoba pulihkan — supaya pengunjung yang
+   * belum pernah masuk tidak dibuat menunggu satu request sia-sia.
+   */
+  session: 'aio.session',
   /** Preferensi tema: 'light' | 'dark' | 'system'. */
   theme: 'aio.theme',
   /** Sidebar desktop menyusut jadi rel ikon. */

@@ -61,21 +61,21 @@ pindah sendiri ke port berikutnya.
 
 ## Script npm
 
-| Script                 | Fungsi                                                                  |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `npm run dev`          | Dev server + HMR                                                        |
-| `npm run build`        | Type check lalu build produksi ke `dist/`                               |
-| `npm run preview`      | Serve hasil build secara lokal                                          |
-| `npm run typecheck`    | `tsc --noEmit` saja                                                     |
-| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                  |
-| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                               |
-| `npm run format`       | Prettier, tulis perubahan                                               |
-| `npm run format:check` | Prettier, hanya cek                                                     |
-| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                        |
-| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai |
-| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                           |
-| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                    |
-| `npm run check:layers` | Gagal bila komponen mengimpor HTTP client/mock                          |
+| Script                 | Fungsi                                                                    |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`          | Dev server + HMR                                                          |
+| `npm run build`        | Type check lalu build produksi ke `dist/`                                 |
+| `npm run preview`      | Serve hasil build secara lokal                                            |
+| `npm run typecheck`    | `tsc --noEmit` saja                                                       |
+| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                    |
+| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                                 |
+| `npm run format`       | Prettier, tulis perubahan                                                 |
+| `npm run format:check` | Prettier, hanya cek                                                       |
+| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                          |
+| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai   |
+| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                             |
+| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                      |
+| `npm run check:layers` | Gagal bila batas lapisan dilanggar (HTTP client, mock, token, sinyal 401) |
 
 ## Styling: Tailwind CSS
 
@@ -223,10 +223,12 @@ di-load:
 {
   id: 'settings',
   path: '/settings',
-  access: 'protected',   // protected | guest | any
-  layout: 'app',         // app | auth | bare
-  title: 'Settings',     // judul sidebar, header, dan tab browser
+  access: 'protected',           // protected | guest | any
+  permission: 'settings:manage', // izin yang dibutuhkan, atau null
+  layout: 'app',                 // app | auth | bare
+  title: 'Settings',             // judul sidebar, header, dan tab browser
   nav: { icon: 'settings-icon', group: 'sistem' },   // atau false
+  devOnly: false,
   load: () => import('@/pages/SettingsPage.tsx'),
 }
 ```
@@ -257,13 +259,13 @@ baru lupa didaftarkan. Di sini keduanya satu baris yang sama, jadi mustahil
 berbeda. Sidebar tinggal merender `NAV_MENU`, yang sudah dikelompokkan dan
 dibuang grup kosongnya.
 
-**Guard.** `access` diterjemahkan `RouteGuard` jadi satu aturan terpusat:
-`protected` melempar tamu ke `/login` (sambil mengingat tujuan awal, supaya
-dikembalikan ke sana setelah login), `guest` melempar yang sudah login ke
-dashboard, `any` dibiarkan lewat. Status auth-nya masih palsu —
-`src/features/auth/fake-auth.ts`, satu flag di localStorage — dan diganti
-autentikasi sungguhan di Issue #10. Komponen tidak pernah membaca flag itu
-langsung; semuanya lewat `useIsAuthenticated()`.
+**Guard.** `access` dan `permission` diterjemahkan `RouteGuard` jadi satu aturan
+terpusat: `protected` melempar tamu ke `/login` (sambil mengingat tujuan awal,
+supaya dikembalikan ke sana setelah masuk), `guest` melempar yang sudah masuk ke
+dashboard, `any` dibiarkan lewat, dan `permission` yang tidak dipenuhi ditolak di
+tempat tanpa memindahkan URL. Selama sesi belum diketahui — persis setelah muat
+ulang halaman — guard menahan diri dan menampilkan `RouteFallback`. Rinciannya di
+bagian [Autentikasi](#autentikasi).
 
 **Lazy loading.** Setiap halaman jadi chunk terpisah karena `load` memakai
 `() => import(...)`. Terlihat di output `npm run build`:
@@ -457,13 +459,20 @@ menyimpang dari kontrak gagal saat `npm run typecheck`.
 Token hidup di memori (`src/services/auth-token.ts`), bukan di localStorage:
 apa pun yang tersimpan di sana terbaca skrip mana pun yang berhasil masuk ke
 halaman. Lapisan auth **menulis**, lapisan HTTP **membaca** — arah itu dijaga
-`check:layers` juga.
+`check:layers` juga. Cara sesi tetap bertahan setelah reload dibahas di bagian
+[Autentikasi](#autentikasi).
 
 Karena header `Authorization` membuat request jadi non-simple, backend di origin
 berbeda **wajib** menjawab preflight `OPTIONS` dengan
 `Access-Control-Allow-Headers: Authorization`. Tanpa itu request tidak pernah
 terkirim dan gejalanya menyesatkan: halaman menggantung di keadaan memuat tanpa
 satu pun request terlihat di log server.
+
+Endpoint sesi menambah satu syarat lagi: ia dikirim dengan
+`credentials: 'include'` supaya cookie refresh ikut terbawa, jadi backend lintas
+origin harus menjawab `Access-Control-Allow-Credentials: true` **dan**
+menyebutkan origin aplikasi secara eksplisit di `Access-Control-Allow-Origin`
+(`*` ditolak browser begitu kredensial ikut dikirim).
 
 ## Global state
 
@@ -512,8 +521,16 @@ ditulis sekali dan berlaku untuk semuanya:
 - **Nilai asing tidak merusak.** Isi storage bisa berasal dari versi lama atau
   dari devtools pengguna sendiri; apa pun yang tidak dikenali jatuh ke default.
 
+`createPersistedStore` dibangun di atas `createStore` yang hanya hidup di memori.
+Pembagiannya bukan detail teknis melainkan keputusan soal isi: preferensi milik
+browser dan pantas bertahan, sedangkan sesi milik server dan **tidak boleh**
+bertahan — menyalinnya ke localStorage melahirkan sumber kebenaran kedua yang
+bisa bertentangan dengan jawaban server.
+
 Seluruh kunci storage terdaftar di `src/store/storage-keys.ts` — sekaligus
-jawaban atas "aplikasi ini menyimpan apa saja di browser saya?".
+jawaban atas "aplikasi ini menyimpan apa saja di browser saya?". Jawabannya
+pendek: preferensi tema, keadaan sidebar, dan id pengguna yang sedang masuk.
+Tidak ada token di sana.
 
 ### Tema
 
@@ -541,6 +558,121 @@ runtime, jadi nama kunci storage tidak bisa berselisih diam-diam.
 > Warna semantik (`-soft` / `-strong` pada badge status) masih memakai nilai
 > terang di kedua tema. Terbaca dan disengaja untuk sekarang; penyesuaiannya
 > bagian Issue #15.
+
+## Autentikasi
+
+> Status: **terpasang** · Issue #10 · `src/features/auth/` + `src/services/auth/`
+
+### Di mana kredensial disimpan
+
+| Yang disimpan  | Tempatnya                             | Bertahan setelah reload?     |
+| -------------- | ------------------------------------- | ---------------------------- |
+| Access token   | memori (`src/services/auth-token.ts`) | tidak                        |
+| Identitas/role | memori (`session.ts`)                 | tidak — diambil ulang server |
+| Penanda sesi   | localStorage, **hanya id pengguna**   | ya                           |
+| Refresh token  | cookie `HttpOnly` milik server        | ya, tak terbaca JavaScript   |
+
+Token tidak pernah menyentuh localStorage. Apa pun yang tersimpan di sana bisa
+dibaca skrip mana pun yang berhasil masuk ke halaman — satu dependency yang
+tersusupi cukup untuk membawa pergi sesi seluruh pengguna, dan token curian tetap
+sah sampai kedaluwarsa.
+
+Yang membuat sesi bertahan melewati reload adalah cookie refresh, bukan penanda
+di localStorage. Penanda itu tidak memberi akses apa pun; ia cuma alat komunikasi
+antar tab, sekaligus jawaban cepat atas "perlukah bertanya ke server saat halaman
+dimuat?" — pengunjung yang belum pernah masuk tidak dibuat menunggu satu request
+yang sudah pasti gagal.
+
+### Tiga keadaan sesi, bukan dua
+
+```
+unknown → belum tahu; masih bertanya ke server (hanya saat halaman baru dimuat)
+authenticated
+anonymous
+```
+
+`unknown` ada karena token hanya hidup di memori: setelah F5 aplikasi memang
+belum tahu jawabannya. Tanpa keadaan ketiga ini, menekan F5 di halaman mana pun
+melempar pengguna ke halaman login sepersekian detik sebelum menariknya kembali.
+
+### Alur
+
+1. **Masuk.** `POST /auth/login` → server membalas `{ token, expiresIn, user }`
+   dan memasang cookie refresh. `startSession()` menyimpan token di memori,
+   menulis penanda, lalu menjadwalkan perpanjangan.
+2. **Perpanjangan otomatis.** Satu menit sebelum token mati (atau di tiga
+   perempat umurnya, mana yang lebih lambat), `POST /auth/refresh` menukar cookie
+   dengan token baru. Pengguna tidak melihat apa pun.
+3. **Pemulihan saat muat.** `App.tsx` memanggil `bootstrapSession()` sekali;
+   jalurnya persis sama dengan perpanjangan.
+4. **Sesi berakhir.** Refresh gagal, atau ada request yang dijawab `401` —
+   keduanya bermuara ke `endSession()`: token dibuang, penanda dikosongkan,
+   `queryClient.clear()` dijalankan, dan `RouteGuard` yang memindahkan pengguna
+   ke `/login`.
+5. **Keluar.** Sama seperti (4), plus `POST /auth/logout` supaya cookie-nya
+   benar-benar dicabut server. Tanpa langkah itu, membuka ulang aplikasi
+   memulihkan sesi yang tadi ditutup pengguna.
+
+`401` ditangani **satu kali di `http.ts`**, bukan di tiap `useQuery`. Jalurnya
+lewat `src/services/unauthorized.ts`, modul kosong tanpa impor yang menjadi titik
+temu dua lapisan yang tidak boleh saling mengimpor — arahnya dijaga
+`npm run check:layers`. Request yang ditandai `anonymous: true` (login, refresh,
+logout) dikecualikan: `401` di sana berarti "kredensial salah", bukan "sesi
+berakhir", dan tanpa pengecualian itu salah ketik password akan melempar pengguna
+ke halaman login dari halaman login.
+
+Yang **tidak** dilakukan: refresh diam-diam lalu mengulang request yang gagal.
+Itu menuntut antrean request tertunda beserta penanganan "beberapa request gagal
+bersamaan" — keputusan tersendiri, bukan bagian Issue #10. Jadwal perpanjangan di
+atas sudah menjaga sesi yang sehat tetap hidup.
+
+### Role & izin
+
+Komponen menanyakan **apa yang boleh dilakukan**, bukan **siapa penggunanya**:
+
+```tsx
+const can = useCan()
+{
+  can('deployment:run') && <Button>Jalankan ulang</Button>
+}
+```
+
+`user.role === 'admin'` yang tersebar di komponen bekerja sampai peran keempat
+muncul — lalu setiap perbandingan itu harus dicari satu per satu, dan yang
+terlewat tidak menimbulkan error apa pun: tombolnya cuma hilang, atau justru
+muncul untuk orang yang tidak berhak. Peta peran → izin ada di
+`src/features/auth/permissions.ts`; menambah peran berarti menambah satu baris di
+sana.
+
+Route menyatakan izinnya lewat kolom `permission` di `ROUTE_TABLE`. Sidebar dan
+`RouteGuard` membaca kolom yang sama, jadi menu yang terlihat mustahil menunjuk
+halaman yang akan menolaknya.
+
+> Semua ini berjalan di browser dan bisa dimatikan siapa pun lewat devtools.
+> Gunanya menyembunyikan hal yang bukan urusan pengguna, **bukan** mengamankannya
+> — server tetap wajib menolak sendiri setiap request yang tidak berhak.
+
+### Akun demo (mode mock)
+
+| Email                | Password      | Peran    | Terlihat olehnya    |
+| -------------------- | ------------- | -------- | ------------------- |
+| `admin@aio.dev`      | `admin123`    | admin    | semua menu          |
+| `operator@aio.dev`   | `operator123` | operator | tanpa Settings      |
+| `viewer@aio.dev`     | `viewer123`   | viewer   | hanya Dashboard     |
+| `sesipendek@aio.dev` | `sesipendek`  | operator | sesi mati ~20 detik |
+
+Daftarnya juga tampil di halaman login saat `npm run dev`, dan lenyap seluruhnya
+dari bundle produksi.
+
+Akun terakhir ada untuk satu alasan: alur "token mati → kembali ke halaman login"
+termasuk yang paling sering rusak diam-diam, justru karena mengujinya biasanya
+menuntut menunggu berjam-jam atau mengoprek jam sistem. Dengan akun itu,
+perpanjangan yang berhasil lalu yang gagal bisa diamati dalam setengah menit.
+
+Mock memeriksa token untuk **semua** endpoint, bukan hanya `/auth/*` — sama
+seperti middleware di server sungguhan. Route yang boleh diakses tanpa token
+harus ditandai `public: true` secara eksplisit, jadi route baru yang lupa
+ditandai akan menolak request alih-alih diam-diam terbuka.
 
 ## Konfigurasi environment
 
@@ -596,17 +728,21 @@ aio-devops/
 │   ├── components/      komponen lintas halaman
 │   │   └── ui/          design system: Button, Table, Modal, …
 │   ├── config/          konfigurasi runtime (env)
-│   ├── features/        logika per domain (auth, dst.)
+│   ├── features/
+│   │   └── auth/        sesi, izin, hook login
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
 │   ├── services/        lapisan data
+│   │   ├── auth/        endpoint sesi + mock-nya
 │   │   ├── dashboard/   satu folder per domain: types, service, queries, mock
 │   │   ├── mock/        backend tiruan (transport + daftar route)
 │   │   ├── http.ts      satu-satunya pemanggil fetch di aplikasi
 │   │   ├── api-error.ts bentuk error tunggal
+│   │   ├── auth-token.ts    titik temu: auth menulis, http membaca
+│   │   ├── unauthorized.ts  titik temu: http memberi sinyal 401, auth menanggapi
 │   │   └── query-client.ts  kebijakan cache & retry TanStack Query
-│   ├── store/           state global: tema, preferensi UI, kunci storage
+│   ├── store/           state global: sesi, tema, preferensi UI, kunci storage
 │   ├── utils/           helper murni tanpa React (cn, page-items)
 │   ├── App.tsx          provider global lalu <RouterProvider>
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
