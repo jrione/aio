@@ -18,14 +18,17 @@
     "env:example": "node scripts/env-example.ts",
     "env:check": "node scripts/env-example.ts --check",
     "check:lang": "node scripts/check-language.ts",
-    "check:styles": "node scripts/check-styles.ts"
+    "check:styles": "node scripts/check-styles.ts",
+    "check:layers": "node scripts/check-layers.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.0",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
@@ -40,7 +43,6 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.0",
-    "vite-tsconfig-paths": "^6.1.1"
+    "vite": "^8.2.0"
   }
 }

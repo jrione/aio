@@ -5,6 +5,10 @@
  * tidak ada satu pun item menu yang ditulis langsung di JSX ini. Menambah
  * menu berarti menambah entri di tabel route, bukan menyunting file ini.
  *
+ * Menu yang di luar hak akses pengguna disaring di sini, dari kolom `permission`
+ * pada tabel route yang sama yang dipakai `RouteGuard`. Karena sumbernya satu,
+ * menu yang terlihat mustahil menunjuk halaman yang akan menolaknya.
+ *
  * Perilaku responsif diserahkan ke CSS, bukan JavaScript:
  *   - < md : sidebar berada di luar layar dan digeser masuk sebagai drawer
  *            saat `mobileOpen`, dengan backdrop di belakangnya.
@@ -16,6 +20,7 @@ import { NavLink } from 'react-router'
 
 import { Icon } from '@/components/Icon.tsx'
 import { env } from '@/config/env.ts'
+import { useCan } from '@/features/auth/permissions.ts'
 import { NAV_MENU } from '@/routes/routes.ts'
 
 interface AppSidebarProps {
@@ -29,6 +34,14 @@ export function AppSidebar({ collapsed, mobileOpen, onClose }: AppSidebarProps) 
   // memindai source sebagai teks.
   const width = collapsed ? 'md:w-16' : 'md:w-64'
   const labelVisibility = collapsed ? 'md:hidden' : ''
+
+  // Grup yang seluruh isinya tersaring ikut hilang — kalau tidak, sidebar
+  // menyisakan judul kategori yang menaungi daftar kosong.
+  const can = useCan()
+  const menu = NAV_MENU.map(({ group, routes }) => ({
+    group,
+    routes: routes.filter((route) => can(route.permission)),
+  })).filter((section) => section.routes.length > 0)
 
   return (
     <>
@@ -69,7 +82,7 @@ export function AppSidebar({ collapsed, mobileOpen, onClose }: AppSidebarProps) 
         </div>
 
         <nav aria-label="Navigasi utama" className="flex grow flex-col gap-6 overflow-y-auto p-3">
-          {NAV_MENU.map(({ group, routes }) => (
+          {menu.map(({ group, routes }) => (
             <div key={group.id}>
               <h2
                 className={`px-3 pb-2 text-xs font-semibold tracking-wider text-content-muted uppercase ${labelVisibility}`}

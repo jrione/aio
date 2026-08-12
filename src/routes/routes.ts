@@ -20,6 +20,8 @@
  */
 import type { ComponentType } from 'react'
 
+import type { Permission } from '@/features/auth/permissions.ts'
+
 /**
  * Siapa yang boleh membuka route:
  *   - `protected` → wajib login; kalau belum, dilempar ke halaman login
@@ -61,6 +63,16 @@ export interface RouteDefinition {
   readonly id: string
   readonly path: string
   readonly access: RouteAccess
+  /**
+   * Izin yang harus dimiliki pengguna, atau `null` bila halaman ini terbuka
+   * untuk semua yang lolos `access`.
+   *
+   * Ditulis di sini, bukan di dalam komponen halaman, dengan alasan yang sama
+   * seperti `access`: sekali sebuah halaman lupa memeriksa haknya sendiri, tidak
+   * ada yang memberi tahu. Dari satu kolom ini menu sidebar dan penjaga route
+   * sama-sama membaca jawabannya, jadi keduanya mustahil berbeda pendapat.
+   */
+  readonly permission: Permission | null
   readonly layout: RouteLayout
   /** Judul halaman. Dipakai di menu sidebar, header, dan `document.title`. */
   readonly title: string
@@ -85,6 +97,7 @@ export const ROUTE_TABLE = [
     id: 'dashboard',
     path: '/',
     access: 'protected',
+    permission: 'dashboard:read',
     layout: 'app',
     title: 'Dashboard',
     nav: { icon: 'dashboard-icon', group: 'operasional' },
@@ -95,6 +108,7 @@ export const ROUTE_TABLE = [
     id: 'settings',
     path: '/settings',
     access: 'protected',
+    permission: 'settings:manage',
     layout: 'app',
     title: 'Settings',
     nav: { icon: 'settings-icon', group: 'sistem' },
@@ -105,6 +119,7 @@ export const ROUTE_TABLE = [
     id: 'login',
     path: '/login',
     access: 'guest',
+    permission: null,
     layout: 'auth',
     title: 'Masuk',
     nav: false,
@@ -115,6 +130,7 @@ export const ROUTE_TABLE = [
     id: 'devUi',
     path: '/dev/ui',
     access: 'any',
+    permission: null,
     layout: 'app',
     title: 'Design system',
     nav: { icon: 'sidebar-icon', group: 'sistem' },
@@ -132,6 +148,7 @@ export const ROUTE_TABLE = [
     id: 'notFound',
     path: '*',
     access: 'any',
+    permission: null,
     layout: 'bare',
     title: 'Halaman tidak ditemukan',
     nav: false,

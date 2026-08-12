@@ -15,10 +15,12 @@ import { Badge } from '@/components/ui/Badge.tsx'
 import { Button } from '@/components/ui/Button.tsx'
 import { Card } from '@/components/ui/Card.tsx'
 import { EmptyState } from '@/components/ui/EmptyState.tsx'
+import { ErrorState } from '@/components/ui/ErrorState.tsx'
 import { Input } from '@/components/ui/Input.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 import { Pagination } from '@/components/ui/Pagination.tsx'
 import { Select } from '@/components/ui/Select.tsx'
+import { Skeleton } from '@/components/ui/Skeleton.tsx'
 import { Spinner } from '@/components/ui/Spinner.tsx'
 import { Table, type TableColumn } from '@/components/ui/Table.tsx'
 import { Tabs } from '@/components/ui/Tabs.tsx'
@@ -279,23 +281,47 @@ export default function DevUiPage() {
         </div>
       </Section>
 
-      <Section title="Spinner & EmptyState">
+      <Section
+        title="Spinner, Skeleton, EmptyState & ErrorState"
+        hint="Keadaan-keadaan yang dirender <QueryState> di lapisan data."
+      >
         <div className="flex flex-wrap items-center gap-6">
           <Spinner size="sm" />
           <Spinner size="md" />
           <Spinner size="lg" label="Memuat data" />
         </div>
-        <Card bodyClassName="p-0">
-          <EmptyState
-            title="Tidak ada hasil"
-            description="Coba ubah kata kunci atau saring dengan lingkungan lain."
-            action={
-              <Button size="sm" variant="secondary">
-                Reset filter
-              </Button>
-            }
-          />
+
+        {/* Skeleton dipakai saat ukuran isinya bisa ditebak lebih dulu —
+            kartu metrik, baris tabel, kotak grafik. Untuk isi yang tingginya
+            tak tentu, spinner di atas lebih jujur. */}
+        <Card>
+          <Skeleton className="h-4 w-28" />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-6 w-16" />
+          </div>
         </Card>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card bodyClassName="p-0">
+            <EmptyState
+              title="Tidak ada hasil"
+              description="Coba ubah kata kunci atau saring dengan lingkungan lain."
+              action={
+                <Button size="sm" variant="secondary">
+                  Reset filter
+                </Button>
+              }
+            />
+          </Card>
+          <Card bodyClassName="p-0">
+            <ErrorState
+              description="Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+              onRetry={() => {
+                toast.show({ tone: 'info', title: 'Mencoba lagi…' })
+              }}
+            />
+          </Card>
+        </div>
       </Section>
 
       <Section title="Pagination" hint="Halaman jauh diringkas jadi elipsis.">

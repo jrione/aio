@@ -1,76 +1,69 @@
 /**
  * Halaman dashboard (route `/`).
  *
- * Isinya masih sementara — widget sungguhan dibangun di Issue #11. Yang ada
- * sekarang cukup untuk menunjukkan kartu, badge, dan keadaan kosong berdiri di
- * atas design token yang sama.
+ * Sejak Issue #11 halaman ini hampir tidak berisi apa-apa selain susunan: tiga
+ * widget di `src/features/dashboard/`, masing-masing memanggil hook domainnya
+ * sendiri dan menangani keempat keadaannya sendiri. Yang tinggal di sini cuma
+ * satu hal yang memang milik halaman — penyaring lingkungan yang berlaku untuk
+ * ketiganya sekaligus.
+ *
+ * Pembagian itu yang menjaga halaman tetap bisa dibaca saat widget bertambah:
+ * menambah satu widget berarti menambah satu baris di sini, bukan menambah satu
+ * query, satu state loading, satu state error, dan satu state kosong.
+ *
+ * Tidak ada `fetch`, tidak ada URL, tidak ada nama parameter query di file ini
+ * maupun di widget-nya. Semua lewat hook domain — dijaga `npm run check:layers`.
  */
-import { Link } from 'react-router'
+import { useState } from 'react'
 
-import { Badge } from '@/components/ui/Badge.tsx'
-import { buttonVariants } from '@/components/ui/button-variants.ts'
-import { Card } from '@/components/ui/Card.tsx'
-import { EmptyState } from '@/components/ui/EmptyState.tsx'
-import { ROUTES } from '@/routes/routes.ts'
+import { Select } from '@/components/ui/Select.tsx'
+import { ActivityFeed } from '@/features/dashboard/ActivityFeed.tsx'
+import { ENVIRONMENT_LABEL } from '@/features/dashboard/formatters.ts'
+import { MetricGrid } from '@/features/dashboard/MetricGrid.tsx'
+import { TrendChart } from '@/features/dashboard/TrendChart.tsx'
+import type { DeploymentEnvironment, TrendRange } from '@/services/dashboard/dashboard.types.ts'
 
-interface Stat {
-  id: string
-  label: string
-  value: string
-  tone: 'success' | 'warning' | 'danger' | 'info'
-  status: string
-}
-
-const STATS: Stat[] = [
-  {
-    id: 'deployments',
-    label: 'Deployment hari ini',
-    value: '12',
-    tone: 'success',
-    status: 'sehat',
-  },
-  { id: 'pipelines', label: 'Pipeline berjalan', value: '3', tone: 'info', status: 'berjalan' },
-  { id: 'incidents', label: 'Insiden terbuka', value: '1', tone: 'warning', status: 'perlu cek' },
-]
+/** `''` berarti seluruh lingkungan. */
+const ENVIRONMENT_OPTIONS = [
+  { value: '', label: 'Semua lingkungan' },
+  { value: 'production', label: ENVIRONMENT_LABEL.production },
+  { value: 'staging', label: ENVIRONMENT_LABEL.staging },
+  { value: 'sandbox', label: ENVIRONMENT_LABEL.sandbox },
+] as const
 
 export default function DashboardPage() {
+  const [environment, setEnvironment] = useState<DeploymentEnvironment | undefined>(undefined)
+  const [range, setRange] = useState<TrendRange>('24h')
+
+  const filter = { environment }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Judul halaman sudah ditampilkan AppHeader dari ROUTE_TABLE, jadi
           halaman tidak mengulanginya sebagai <h1> kedua. */}
-      <p className="text-content-muted">
-        Angka di bawah masih contoh. Widget yang membaca data sungguhan dibangun di Issue #11,
-        setelah lapisan API di Issue #8 siap.
-      </p>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {STATS.map((stat) => (
-          <Card key={stat.id}>
-            <p className="text-sm text-content-muted">{stat.label}</p>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="font-display text-3xl font-medium text-content">{stat.value}</span>
-              <Badge tone={stat.tone} dot>
-                {stat.status}
-              </Badge>
-            </div>
-          </Card>
-        ))}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <p className="text-sm text-content-muted">
+          Ringkasan operasional lintas layanan, diperbarui otomatis.
+        </p>
+
+        <Select
+          id="dashboard-lingkungan"
+          size="sm"
+          aria-label="Saring seluruh dashboard menurut lingkungan"
+          options={ENVIRONMENT_OPTIONS}
+          value={environment ?? ''}
+          onChange={(event) => {
+            const next = ENVIRONMENT_OPTIONS.find((option) => option.value === event.target.value)
+            setEnvironment(next && next.value !== '' ? next.value : undefined)
+          }}
+          wrapperClassName="w-48"
+        />
       </div>
 
-      <Card title="Aktivitas terbaru" bodyClassName="p-0">
-        <EmptyState
-          title="Belum ada aktivitas"
-          description="Riwayat deployment dan pipeline muncul di sini begitu lapisan API tersambung."
-          action={
-            <Link
-              to={ROUTES.settings}
-              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-            >
-              Lihat konfigurasi
-            </Link>
-          }
-        />
-      </Card>
+      <MetricGrid filter={filter} />
+      <TrendChart filter={filter} range={range} onRangeChange={setRange} />
+      <ActivityFeed filter={filter} />
     </div>
   )
 }

@@ -14,15 +14,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 
-const STORAGE_KEY = 'aio.sidebar-collapsed'
-
-const readCollapsed = (): boolean => {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
+import { sidebarCollapsedStore } from '@/store/ui.ts'
 
 export interface SidebarState {
   collapsed: boolean
@@ -33,17 +25,12 @@ export interface SidebarState {
 }
 
 export function useSidebar(): SidebarState {
-  const [collapsed, setCollapsed] = useState(readCollapsed)
+  // `collapsed` adalah preferensi yang bertahan, jadi ia tinggal di store
+  // global. `mobileOpen` keadaan sesaat, jadi cukup state lokal — pembagian
+  // itulah aturan yang dijelaskan di `src/store/create-store.ts`.
+  const collapsed = sidebarCollapsedStore.use()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { pathname } = useLocation()
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(collapsed))
-    } catch {
-      // Mode privat melarang localStorage; pilihannya cukup berlaku sesi ini.
-    }
-  }, [collapsed])
 
   // Berpindah halaman menutup drawer — kalau tidak, menu menutupi halaman
   // yang baru saja dibuka pengguna.
@@ -63,7 +50,7 @@ export function useSidebar(): SidebarState {
   }, [])
 
   const toggleCollapsed = useCallback(() => {
-    setCollapsed((current) => !current)
+    sidebarCollapsedStore.set(!sidebarCollapsedStore.get())
   }, [])
   const openMobile = useCallback(() => {
     setMobileOpen(true)
