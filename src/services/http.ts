@@ -6,6 +6,7 @@
  *   - base URL dari `env.apiBaseUrl`
  *   - timeout dari `env.apiTimeout`, digabung dengan sinyal abort pemanggil
  *   - header `Authorization` dari `auth-token.ts`
+ *   - pemberitahuan ke lapisan sesi saat server menjawab `401`
  *   - serialisasi query string & body JSON
  *   - normalisasi seluruh kegagalan jadi `ApiError`
  *
@@ -21,6 +22,7 @@
 import { env } from '@/config/env.ts'
 import { ApiError, toApiError } from '@/services/api-error.ts'
 import { getAuthToken } from '@/services/auth-token.ts'
+import { signalUnauthorized } from '@/services/unauthorized.ts'
 
 /**
  * Bentuk minimal `fetch` yang dipakai lapisan ini.
@@ -40,6 +42,25 @@ export interface RequestOptions {
   /** Diteruskan TanStack Query agar request ikut batal saat query tidak lagi dibutuhkan. */
   signal?: AbortSignal
   headers?: Record<string, string>
+  /**
+   * Request yang memang tidak membawa sesi: login, refresh, daftar, lupa
+   * password.
+   *
+   * Dua akibatnya, dan yang kedua justru alasan utamanya:
+   *   1. header `Authorization` tidak dipasang meski kebetulan ada token sisa;
+   *   2. balasan `401` **tidak** dianggap sebagai sesi berakhir.
+   *
+   * Tanpa (2), salah ketik password akan memicu "sesi Anda sudah berakhir"
+   * lalu melempar pengguna ke halaman login — dari halaman login. Dua arti
+   * `401` yang sangat berbeda ("kredensial salah" vs "token mati") hanya bisa
+   * dibedakan oleh pemanggilnya, jadi di sinilah tempat menyatakannya.
+   */
+  anonymous?: boolean
+  /**
+   * Diteruskan apa adanya ke `fetch`. Dipakai `'include'` oleh endpoint refresh
+   * supaya cookie `HttpOnly` ikut terkirim meski API berada di origin lain.
+   */
+  credentials?: RequestCredentials
 }
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -133,8 +154,8 @@ async function request<Data>(
   path: string,
   options: RequestOptions = {},
 ): Promise<Data> {
-  const { query, body, signal, headers } = options
-  const token = getAuthToken()
+  const { query, body, signal, headers, anonymous = false, credentials } = options
+  const token = anonymous ? null : getAuthToken()
 
   // FormData menentukan sendiri Content-Type-nya lengkap dengan boundary;
   // menuliskannya manual justru merusak unggahan berkas.
@@ -143,6 +164,7 @@ async function request<Data>(
   const init: RequestInit = {
     method,
     signal: buildSignal(signal),
+    ...(credentials === undefined ? {} : { credentials }),
     headers: {
       Accept: 'application/json',
       ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
@@ -165,6 +187,16 @@ async function request<Data>(
   }
 
   if (!response.ok) {
+    /*
+     * Sesi berakhir diberitahukan dari sini, bukan dari tiap pemanggil.
+     *
+     * Kalau tidak, setiap `useQuery` di aplikasi harus ingat memeriksa
+     * `error.status === 401` dan memanggil logout sendiri — dan yang lupa
+     * tidak akan ketahuan sampai ada pengguna yang tabnya menganggur semalam
+     * lalu menemukan halaman penuh pesan error alih-alih halaman login.
+     */
+    if (response.status === 401 && !anonymous) signalUnauthorized()
+
     const payload = await readErrorPayload(response)
     throw new ApiError('http', {
       status: response.status,

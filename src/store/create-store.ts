@@ -29,7 +29,7 @@ import { useSyncExternalStore } from 'react'
 
 import type { StorageKey } from '@/store/storage-keys.ts'
 
-export interface PersistedStore<Value> {
+export interface Store<Value> {
   /** Nilai saat ini, tanpa berlangganan. Untuk dipakai di luar komponen React. */
   get: () => Value
   /**
@@ -48,8 +48,52 @@ export interface PersistedStore<Value> {
   set: (value: Value) => void
   /** Berlangganan perubahan di luar React, mis. untuk efek samping pada `<html>`. */
   subscribe: (listener: () => void) => () => void
-  /** Hook React: ikut render ulang saat nilainya berubah, termasuk dari tab lain. */
+  /**
+   * Hook React: ikut render ulang saat nilainya berubah — termasuk saat yang
+   * mengubahnya adalah tab lain, bila store-nya terpersist.
+   */
   use: () => Value
+}
+
+/**
+ * Store yang hidup di memori saja — hilang saat tab ditutup atau dimuat ulang.
+ *
+ * Dipakai untuk keadaan yang memang **tidak boleh** bertahan: sesi pengguna
+ * yang isinya berasal dari server, bukan dari browser. Menyimpannya di
+ * localStorage bukan cuma soal keamanan token; ia juga melahirkan sumber
+ * kebenaran kedua yang bisa bertentangan dengan jawaban server, dan yang
+ * menang adalah yang kebetulan dibaca lebih dulu.
+ *
+ * `createPersistedStore` di bawah dibangun di atas fungsi ini, jadi kedua
+ * jenis store berbagi persis satu implementasi langganan dan snapshot.
+ */
+export function createStore<Value>(initial: Value): Store<Value> {
+  const listeners = new Set<() => void>()
+  let current = initial
+
+  // Referensi kedua fungsi ini harus stabil: `useSyncExternalStore`
+  // berlangganan ulang setiap kali argumen pertamanya berganti referensi.
+  const subscribe = (listener: () => void) => {
+    listeners.add(listener)
+    return () => {
+      listeners.delete(listener)
+    }
+  }
+
+  const getSnapshot = () => current
+
+  return {
+    get: getSnapshot,
+    subscribe,
+
+    set: (value) => {
+      if (Object.is(value, current)) return
+      current = value
+      for (const listener of listeners) listener()
+    },
+
+    use: () => useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+  }
 }
 
 export interface StoreOptions<Value> {
@@ -73,9 +117,7 @@ export function createPersistedStore<Value>({
   fallback,
   decode,
   encode = String,
-}: StoreOptions<Value>): PersistedStore<Value> {
-  const listeners = new Set<() => void>()
-
+}: StoreOptions<Value>): Store<Value> {
   const readStorage = (): Value => {
     try {
       const raw = window.localStorage.getItem(key)
@@ -88,8 +130,9 @@ export function createPersistedStore<Value>({
   }
 
   /*
-   * Nilainya di-cache di memori, bukan dibaca ulang dari localStorage tiap
-   * render. Dua alasan, dan yang kedua bukan soal performa:
+   * Nilainya di-cache di memori — itulah yang dilakukan store di dalam — bukan
+   * dibaca ulang dari localStorage tiap render. Dua alasan, dan yang kedua
+   * bukan soal performa:
    *
    *   1. `getSnapshot` dipanggil sangat sering oleh React.
    *   2. `useSyncExternalStore` mengharuskan snapshot stabil secara referensi
@@ -97,11 +140,7 @@ export function createPersistedStore<Value>({
    *      tiap panggilan, jadi untuk tipe non-primitif React akan menganggapnya
    *      selalu berubah dan render tanpa henti.
    */
-  let current = readStorage()
-
-  const emit = () => {
-    for (const listener of listeners) listener()
-  }
+  const memory = createStore(readStorage())
 
   /**
    * Perubahan dari tab lain hanya sampai lewat event `storage`.
@@ -112,31 +151,27 @@ export function createPersistedStore<Value>({
   const onStorage = (event: StorageEvent) => {
     // `event.key === null` berarti storage dikosongkan seluruhnya (`clear()`).
     if (event.key !== key && event.key !== null) return
-    const next = readStorage()
-    if (Object.is(next, current)) return
-    current = next
-    emit()
+    memory.set(readStorage())
   }
 
   /*
-   * Referensi fungsi ini harus stabil: `useSyncExternalStore` berlangganan
-   * ulang setiap kali argumen pertamanya berganti referensi. Karena itu ia
-   * dibuat sekali di sini, bukan di dalam `use()`.
-   *
    * Listener `storage` dipasang ke window hanya selama ada yang berlangganan,
-   * dan dilepas saat pelanggan terakhir pergi.
+   * dan dilepas saat pelanggan terakhir pergi. Pelanggannya dihitung di sini
+   * karena `memory` tidak membuka jumlahnya — dan tidak perlu.
    */
+  let subscriberCount = 0
+
   const subscribe = (listener: () => void) => {
-    if (listeners.size === 0) window.addEventListener('storage', onStorage)
-    listeners.add(listener)
+    if (subscriberCount === 0) window.addEventListener('storage', onStorage)
+    subscriberCount += 1
+    const unsubscribe = memory.subscribe(listener)
 
     return () => {
-      listeners.delete(listener)
-      if (listeners.size === 0) window.removeEventListener('storage', onStorage)
+      unsubscribe()
+      subscriberCount -= 1
+      if (subscriberCount === 0) window.removeEventListener('storage', onStorage)
     }
   }
-
-  const getSnapshot = () => current
 
   // Snapshot untuk server rendering. Aplikasi ini murni klien, tapi
   // menyediakannya menjaga hook tetap benar seandainya nanti dirender di
@@ -144,20 +179,19 @@ export function createPersistedStore<Value>({
   const getServerSnapshot = () => fallback
 
   return {
-    get: getSnapshot,
+    get: memory.get,
     subscribe,
 
     set: (value) => {
-      if (Object.is(value, current)) return
-      current = value
+      if (Object.is(value, memory.get())) return
       try {
         window.localStorage.setItem(key, encode(value))
       } catch {
         // Nilainya tetap berlaku selama sesi ini lewat cache di memori.
       }
-      emit()
+      memory.set(value)
     },
 
-    use: () => useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot),
+    use: () => useSyncExternalStore(subscribe, memory.get, getServerSnapshot),
   }
 }
