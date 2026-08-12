@@ -17,13 +17,11 @@ const DETAILS = [
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-3xl font-medium tracking-tight text-content">Settings</h1>
-        <p className="mt-2 text-content-muted">
-          Pengaturan sungguhan menyusul di Issue #13. Sementara ini menampilkan konfigurasi
-          environment yang sedang aktif.
-        </p>
-      </div>
+      {/* Judul halaman datang dari AppHeader — lihat catatan di DashboardPage. */}
+      <p className="text-content-muted">
+        Pengaturan sungguhan menyusul di Issue #13. Sementara ini menampilkan konfigurasi
+        environment yang sedang aktif.
+      </p>
 
       <dl className="divide-y divide-edge rounded-xl border border-edge bg-surface-raised">
         {DETAILS.map(({ label, value }) => (

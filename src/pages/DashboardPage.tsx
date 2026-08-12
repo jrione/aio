@@ -34,13 +34,12 @@ const STATUS_BADGES = [
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-3xl font-medium tracking-tight text-content">Dashboard</h1>
-        <p className="mt-2 text-content-muted">
-          Halaman ini terproteksi. Widget aslinya dibangun di Issue #11 — sementara ini isinya petak
-          design system dari Issue #3.
-        </p>
-      </div>
+      {/* Judul halaman sudah ditampilkan AppHeader dari ROUTE_TABLE, jadi
+          halaman tidak mengulanginya sebagai <h1> kedua. */}
+      <p className="text-content-muted">
+        Halaman ini terproteksi. Widget aslinya dibangun di Issue #11 — sementara ini isinya petak
+        design system dari Issue #3.
+      </p>
 
       <section className="rounded-xl border border-edge bg-surface-raised p-6">
         <h2 className="font-display text-xl font-medium text-content">Design token</h2>
