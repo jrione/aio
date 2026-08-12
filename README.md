@@ -319,10 +319,10 @@ perlu menulis `<h1>` sendiri.
 
 > Status: **terpasang** · Issue #7 · `src/components/ui/`
 
-Tiga belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
-`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `EmptyState`, `ErrorState`,
-`Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya terdaftar saat
-`npm run dev`.
+Empat belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
+`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`,
+`ErrorState`, `Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya
+terdaftar saat `npm run dev`.
 
 **Varian dikelola satu tabel**, bukan `if` bertingkat di JSX. Tabelnya ditulis
 dengan `cva`, dan tipe prop-nya diturunkan dari tabel itu lewat `VariantProps`
@@ -674,6 +674,91 @@ seperti middleware di server sungguhan. Route yang boleh diakses tanpa token
 harus ditandai `public: true` secara eksplisit, jadi route baru yang lupa
 ditandai akan menolak request alih-alih diam-diam terbuka.
 
+## Dashboard
+
+> Status: **terpasang** · Issue #11 · `src/features/dashboard/`
+
+Tiga widget — kartu metrik, grafik tren, tabel aktivitas — plus satu penyaring
+lingkungan di tingkat halaman yang berlaku untuk ketiganya.
+
+### Widget memanggil datanya sendiri
+
+`DashboardPage.tsx` hampir tidak berisi apa-apa selain susunan. Setiap widget
+memanggil hook domainnya sendiri dan menangani keempat keadaannya sendiri lewat
+`<QueryState>`; yang dioper dari halaman cuma penyaringnya.
+
+Alternatifnya — halaman mengambil ketiga data lalu mengoperkannya sebagai props
+— berarti halaman itu menampung tiga query beserta empat keadaan masing-masing.
+Halaman seperti itu berhenti bisa dibaca pada widget keempat, dan memindahkan
+satu widget ke halaman lain berubah jadi operasi bedah.
+
+### Grafik: Recharts, diwarnai token
+
+Recharts menggambar SVG lewat komponen React, jadi warnanya bisa diatur dengan
+**utility class Tailwind yang sama** dengan sisa aplikasi — bukan nilai warna
+yang diketik ulang. `stroke-success` menghasilkan `stroke: var(--color-success)`,
+dan variabel itu ikut berganti saat pengguna berpindah tema, tanpa satu baris
+JavaScript pun. Library berbasis canvas tidak bisa begitu: warnanya harus dibaca
+dari JS lalu digambar ulang setiap kali tema berubah.
+
+Satu jebakan yang perlu diketahui saat menambah seri baru:
+
+```tsx
+// ❌ mendarat di <g class="recharts-area">, kalah dari atribut stroke di <path>
+<Area className="stroke-success" />
+
+// ✅ menghasilkan aturan CSS yang menyasar <path>-nya; CSS mengalahkan atribut
+<Area className="[&_.recharts-area-curve]:stroke-success" />
+
+// ✅ CartesianGrid sebaliknya: className-nya mendarat langsung di tiap <line>
+<CartesianGrid className="stroke-edge" />
+```
+
+Yang bikin repot bukan kesalahannya, melainkan gejalanya: grafiknya tetap
+tergambar dengan warna bawaan Recharts, dan "grafik berwarna biru" tidak terlihat
+seperti kesalahan sampai ada yang membandingkannya dengan badge di sebelahnya.
+
+Tooltip ditulis sendiri, bukan bawaan Recharts, karena yang bawaan memakai style
+inline berlatar putih — kotak menyilaukan di tema gelap. Legendanya juga sendiri,
+supaya penanda warnanya sama persis dengan `Badge` status di tabel.
+
+**Aksesibilitas.** Recharts memasang lapisan aksesibilitasnya sendiri: grafiknya
+fokusabel dan tooltip bisa dijelajahi dengan panah kiri/kanan. Di atas itu, ada
+paragraf `sr-only` berisi jawaban yang sebenarnya dicari orang saat melirik
+grafik — berapa total berhasil dan gagal, dan kapan kegagalan terbanyak terjadi.
+
+**Ukuran.** Recharts adalah dependency terbesar di project ini (~110 kB gzip).
+Seluruhnya jatuh ke chunk `DashboardPage`, yang di-load lewat `lazy()`, jadi
+pengguna yang cuma membuka halaman login tidak menanggungnya. Menekannya lebih
+jauh adalah pekerjaan Issue #16.
+
+### Empat keadaan, per widget
+
+| Keadaan | Yang tampil                                                |
+| ------- | ---------------------------------------------------------- |
+| Memuat  | skeleton seukuran isinya, bukan spinner di kotak kosong    |
+| Gagal   | `<ErrorState>` dengan pesan dari server + tombol coba lagi |
+| Kosong  | `<EmptyState>` yang menjelaskan kenapa kosong              |
+| Berisi  | isinya; saat disegarkan cuma diredupkan, tidak dibuang     |
+
+Keempatnya struktural: `<QueryState>` yang merendernya, jadi widget tidak bisa
+lupa menangani salah satunya.
+
+Keadaan kosong yang tidak bisa dijangkau lewat UI sama saja dengan tidak pernah
+diuji, jadi mock menyediakan jalannya: lingkungan **Sandbox** memang belum pernah
+dipakai, dan memilihnya mengosongkan ketiga widget sekaligus.
+
+### Mock yang tidak bertentangan dengan dirinya sendiri
+
+Kartu metrik **dihitung dari tabel aktivitas yang sama**, bukan ditulis sebagai
+angka lepas. Ringkasan yang ditulis terpisah perlahan bertentangan dengan tabel
+di bawahnya, dan orang yang melihatnya akan menyalahkan kodenya, bukan datanya.
+
+Angka grafik dibangkitkan dari fungsi semu yang **tetap sama untuk ember waktu
+yang sama**. Dengan `Math.random()`, grafik akan menari setiap kali data diambil
+ulang — termasuk saat pengguna cuma mengganti penyaring — dan animasi yang
+seharusnya menandai perubahan sungguhan jadi tidak berarti apa-apa.
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -729,7 +814,8 @@ aio-devops/
 │   │   └── ui/          design system: Button, Table, Modal, …
 │   ├── config/          konfigurasi runtime (env)
 │   ├── features/
-│   │   └── auth/        sesi, izin, hook login
+│   │   ├── auth/        sesi, izin, hook login
+│   │   └── dashboard/   widget dashboard + pemformat bersamanya
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
