@@ -49,6 +49,14 @@ const RULES: readonly LayerRule[] = [
       'Token hanya ditulis lapisan auth dan dibaca lapisan HTTP. Pembaca lain\n' +
       '    berarti token bocor ke tempat yang tidak mengelolanya.',
   },
+  {
+    restricted: '@/services/unauthorized.ts',
+    allowedFrom: ['src/services/http.ts', 'src/features/auth'],
+    reason:
+      'Hanya http.ts yang boleh memberi sinyal 401, dan hanya lapisan auth yang\n' +
+      '    boleh menanggapinya. Pendengar kedua berarti "sesi berakhir" diputuskan\n' +
+      '    di dua tempat, dengan urutan yang tidak ditulis siapa pun.',
+  },
 ]
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx']

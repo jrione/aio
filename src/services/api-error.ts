@@ -100,6 +100,34 @@ export class ApiError extends Error {
 }
 
 /**
+ * Kesalahan validasi per field yang dikirim server, mis. `{ email: "..." }`.
+ *
+ * Server adalah satu-satunya pihak yang tahu sebagian aturan validasi — email
+ * sudah terpakai, password pernah dipakai sebelumnya, kuota habis. Aturan
+ * seperti itu mustahil diperiksa di browser, jadi jawabannya harus bisa kembali
+ * ke field yang tepat, bukan berakhir jadi satu banner merah di atas form.
+ *
+ * Bentuk yang dibaca: `{ errors: { <nama field>: "<pesan>" } }` di dalam body
+ * error. Apa pun yang tidak berbentuk begitu menghasilkan objek kosong — form
+ * lalu jatuh ke `error.message` seperti biasa, dan tidak ada yang meledak
+ * hanya karena backend menjawab dengan bentuk lain.
+ */
+export function fieldErrors(error: unknown): Readonly<Record<string, string>> {
+  if (!(error instanceof ApiError)) return {}
+  const { payload } = error
+  if (typeof payload !== 'object' || payload === null || !('errors' in payload)) return {}
+
+  const { errors } = payload
+  if (typeof errors !== 'object' || errors === null) return {}
+
+  return Object.fromEntries(
+    Object.entries(errors).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  )
+}
+
+/**
  * Membungkus apa pun yang tertangkap jadi `ApiError`.
  *
  * Dipakai di batas lapisan (http client, error boundary) supaya tidak ada

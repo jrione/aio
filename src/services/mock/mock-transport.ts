@@ -17,8 +17,9 @@
  * supaya `http.ts` memperlakukannya persis seperti jawaban server.
  */
 import { env } from '@/config/env.ts'
+import type { User } from '@/services/auth/auth.types.ts'
 import type { Fetcher } from '@/services/http.ts'
-import { MOCK_ROUTES } from '@/services/mock/routes.ts'
+import { authorizeMockRequest, MOCK_ROUTES } from '@/services/mock/routes.ts'
 
 export interface MockContext {
   /** Segmen dinamis dari pola route, mis. `:id` pada `/deployments/:id`. */
@@ -26,6 +27,12 @@ export interface MockContext {
   readonly query: URLSearchParams
   /** Body request yang sudah di-parse dari JSON. `undefined` bila tanpa body. */
   readonly body: unknown
+  /**
+   * Pemilik token yang menyertai request. `undefined` hanya mungkin pada route
+   * `public` — selain itu request tanpa token sah sudah ditolak `401` sebelum
+   * handler ini dipanggil.
+   */
+  readonly user: User | undefined
 }
 
 export interface MockResult {
@@ -45,6 +52,16 @@ export interface MockRoute {
    * seluruh pola route ikut diubah.
    */
   readonly path: string
+  /**
+   * `true` = boleh diakses tanpa token. Hanya endpoint sesi (login, refresh,
+   * logout) yang pantas begini.
+   *
+   * Defaultnya tertutup, dan itu disengaja: menulis `public: true` adalah
+   * keputusan sadar yang terlihat saat membaca daftar route, sedangkan lupa
+   * menulis "butuh auth" tidak terlihat sama sekali. Route baru yang lupa
+   * ditandai akan menolak request — gagalnya berisik, bukan diam-diam terbuka.
+   */
+  readonly public?: boolean
   readonly handle: MockHandler
 }
 
@@ -147,10 +164,29 @@ export const mockFetch: Fetcher = async (url, init) => {
     )
   }
 
+  /*
+   * Pemeriksaan token dijalankan di sini, sekali, untuk seluruh endpoint —
+   * seperti middleware auth di server sungguhan, bukan sebagai baris pertama
+   * di setiap handler.
+   *
+   * Bedanya bukan soal jumlah baris. Handler yang memeriksa sendiri berarti
+   * handler yang lupa memeriksa diam-diam terbuka, dan aplikasi tidak pernah
+   * menghadapi `401` selama pengembangan sehingga jalur "sesi berakhir → balik
+   * ke login" tak pernah teruji.
+   */
+  const user = authorizeMockRequest(new Headers(init.headers))
+  if (matched.route.public !== true && !user) {
+    return Response.json(
+      { message: 'Sesi Anda sudah berakhir. Silakan masuk kembali.' },
+      { status: 401 },
+    )
+  }
+
   const result = await matched.route.handle({
     params: matched.params,
     query: parsed.searchParams,
     body: parseBody(init.body),
+    user,
   })
 
   if (result.body === undefined) return new Response(null, { status: result.status ?? 204 })

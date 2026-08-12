@@ -77,8 +77,8 @@
  *
  * `@theme inline` menaruh nilainya langsung di utility, sehingga
  * `bg-surface` menghasilkan `background-color: var(--surface)` dan ikut
- * berubah saat --surface diganti — baik oleh media query di bawah maupun
- * oleh toggle dark mode manual nanti di Issue #15.
+ * berubah saat --surface diganti — baik oleh media query maupun oleh atribut
+ * `data-theme` yang dipasang toggle tema (Issue #9).
  * ───────────────────────────────────────────────────────────── */
 @theme inline {
   --color-surface: var(--surface);
@@ -90,8 +90,23 @@
 }
 
 @layer base {
+  /*
+   * Tema punya TIGA keadaan, bukan dua, dan urutan ketiga blok di bawah
+   * menentukan siapa mengalahkan siapa:
+   *
+   *   1. `:root` polos                  → nilai terang, selalu terdefinisi.
+   *   2. media query, tapi hanya bila   → pengguna belum memilih apa pun
+   *      `data-theme` bukan "light"        (preferensi `system`).
+   *   3. `:root[data-theme="dark"]`     → pilihan eksplisit, menang telak.
+   *
+   * Penjaga `:not([data-theme='light'])` pada blok kedua itulah yang membuat
+   * "paksa terang di perangkat yang setelan sistemnya gelap" benar-benar
+   * bekerja. Tanpa itu, media query tetap menang dan pilihan pengguna diam-diam
+   * diabaikan — persis keadaan yang paling sulit ditemukan lewat membaca kode,
+   * karena dua dari tiga kombinasinya tetap terlihat benar.
+   */
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
 
     --surface: oklch(1 0 0);
     --surface-raised: oklch(1 0 0);
@@ -102,7 +117,9 @@
   }
 
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+
       --surface: oklch(0.21 0.034 264.665);
       --surface-raised: oklch(0.278 0.033 256.848);
       --surface-sunken: oklch(0.13 0.028 261.692);
@@ -110,6 +127,17 @@
       --content-muted: oklch(0.707 0.022 261.325);
       --edge: oklch(0.373 0.034 259.733);
     }
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --surface: oklch(0.21 0.034 264.665);
+    --surface-raised: oklch(0.278 0.033 256.848);
+    --surface-sunken: oklch(0.13 0.028 261.692);
+    --content: oklch(0.967 0.003 264.542);
+    --content-muted: oklch(0.707 0.022 261.325);
+    --edge: oklch(0.373 0.034 259.733);
   }
 
   body {
