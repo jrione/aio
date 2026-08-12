@@ -67,6 +67,13 @@ export interface RouteDefinition {
   /** Penempatan di sidebar, atau `false` bila halaman ini tidak bermenu. */
   readonly nav: NavPlacement | false
   /**
+   * `true` = hanya terdaftar saat `npm run dev`. Di build produksi route-nya
+   * tidak dipasang sama sekali, jadi URL-nya jatuh ke halaman 404. Ditulis
+   * eksplisit di tiap entri, bukan opsional, supaya keputusannya selalu
+   * terlihat saat membaca tabel.
+   */
+  readonly devOnly: boolean
+  /**
    * Import dinamis halaman. Bentuk `() => import(...)` inilah yang membuat
    * Vite memecah tiap halaman jadi chunk terpisah (lazy loading).
    */
@@ -81,6 +88,7 @@ export const ROUTE_TABLE = [
     layout: 'app',
     title: 'Dashboard',
     nav: { icon: 'dashboard-icon', group: 'operasional' },
+    devOnly: false,
     load: () => import('@/pages/DashboardPage.tsx'),
   },
   {
@@ -90,6 +98,7 @@ export const ROUTE_TABLE = [
     layout: 'app',
     title: 'Settings',
     nav: { icon: 'settings-icon', group: 'sistem' },
+    devOnly: false,
     load: () => import('@/pages/SettingsPage.tsx'),
   },
   {
@@ -99,7 +108,25 @@ export const ROUTE_TABLE = [
     layout: 'auth',
     title: 'Masuk',
     nav: false,
+    devOnly: false,
     load: () => import('@/pages/LoginPage.tsx'),
+  },
+  {
+    id: 'devUi',
+    path: '/dev/ui',
+    access: 'any',
+    layout: 'app',
+    title: 'Design system',
+    nav: { icon: 'sidebar-icon', group: 'sistem' },
+    devOnly: true,
+    // Ternary ini bukan hiasan. Menyaring route dari ACTIVE_ROUTES memang
+    // membuatnya tak terjangkau di produksi, tapi `import()`-nya masih
+    // tertulis di modul — dan Rollup tetap memancarkan chunk-nya (16 kB yang
+    // tak pernah diminta siapa pun). Karena `import.meta.env.DEV` diganti
+    // nilai harfiah saat build, cabang dev jadi kode mati di produksi dan
+    // acuan ke DevUiPage ikut lenyap bersamanya.
+    load: () =>
+      import.meta.env.DEV ? import('@/pages/DevUiPage.tsx') : import('@/pages/NotFoundPage.tsx'),
   },
   {
     id: 'notFound',
@@ -108,6 +135,7 @@ export const ROUTE_TABLE = [
     layout: 'bare',
     title: 'Halaman tidak ditemukan',
     nav: false,
+    devOnly: false,
     load: () => import('@/pages/NotFoundPage.tsx'),
   },
 ] as const satisfies readonly RouteDefinition[]
@@ -127,9 +155,18 @@ export const ROUTES = Object.fromEntries(ROUTE_TABLE.map((route) => [route.id, r
   readonly [R in Route as R['id']]: R['path']
 }
 
+/**
+ * Route yang benar-benar dipasang. Entri `devOnly` disaring habis di build
+ * produksi — `import.meta.env.DEV` diganti nilai harfiah saat build, jadi
+ * penyaringannya terjadi sekali di tingkat modul, bukan tiap render.
+ */
+export const ACTIVE_ROUTES: readonly RouteDefinition[] = ROUTE_TABLE.filter(
+  (route) => !route.devOnly || import.meta.env.DEV,
+)
+
 /** Route yang muncul di sidebar, urutannya sesuai ROUTE_TABLE. */
 export const NAV_ROUTES: readonly NavRoute[] = ROUTE_TABLE.filter(
-  (route): route is NavRoute => route.nav !== false,
+  (route): route is NavRoute => route.nav !== false && (!route.devOnly || import.meta.env.DEV),
 )
 
 /**

@@ -21,7 +21,7 @@ import { BareLayout } from '@/layouts/BareLayout.tsx'
 import { DocumentTitle } from '@/routes/DocumentTitle.tsx'
 import { RouteFallback } from '@/routes/RouteFallback.tsx'
 import { RouteGuard } from '@/routes/RouteGuard.tsx'
-import { ROUTE_TABLE, type RouteDefinition, type RouteLayout } from '@/routes/routes.ts'
+import { ACTIVE_ROUTES, type RouteDefinition, type RouteLayout } from '@/routes/routes.ts'
 
 const LAYOUT_COMPONENTS = {
   app: AppLayout,
@@ -51,7 +51,7 @@ const toRouteObject = (route: RouteDefinition): RouteObject => {
 const routeObjects: RouteObject[] = Object.entries(LAYOUT_COMPONENTS)
   .map(([layout, Layout]) => ({
     element: <Layout />,
-    children: ROUTE_TABLE.filter((route) => route.layout === layout).map(toRouteObject),
+    children: ACTIVE_ROUTES.filter((route) => route.layout === layout).map(toRouteObject),
   }))
   .filter((group) => group.children.length > 0)
 

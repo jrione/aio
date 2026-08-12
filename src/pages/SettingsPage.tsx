@@ -2,16 +2,36 @@
  * Halaman settings (route `/settings`), terproteksi.
  *
  * Isi sungguhan (profil, preferensi, tema) dibangun di Issue #13. Untuk
- * sekarang cukup jadi tujuan kedua supaya navigasi antar halaman dalam satu
- * layout bisa diuji.
+ * sekarang menampilkan konfigurasi environment yang sedang aktif — sekaligus
+ * jadi contoh `Card` + `Table` dengan kolom yang dideklarasikan sebagai data.
  */
+import { Badge } from '@/components/ui/Badge.tsx'
+import { Card } from '@/components/ui/Card.tsx'
+import { Table, type TableColumn } from '@/components/ui/Table.tsx'
 import { env } from '@/config/env.ts'
 
-const DETAILS = [
-  { label: 'Aplikasi', value: env.appName },
-  { label: 'Lingkungan', value: env.appEnv },
-  { label: 'Base URL API', value: env.apiBaseUrl },
-  { label: 'Mode mock', value: env.useMock ? 'aktif' : 'nonaktif' },
+interface Setting {
+  key: string
+  label: string
+  value: string
+}
+
+const SETTINGS: Setting[] = [
+  { key: 'appName', label: 'Aplikasi', value: env.appName },
+  { key: 'appEnv', label: 'Lingkungan', value: env.appEnv },
+  { key: 'apiBaseUrl', label: 'Base URL API', value: env.apiBaseUrl },
+  { key: 'apiTimeout', label: 'Timeout request', value: `${String(env.apiTimeout)} ms` },
+]
+
+const COLUMNS: TableColumn<Setting>[] = [
+  { key: 'label', header: 'Pengaturan', render: (row) => row.label },
+  {
+    key: 'value',
+    header: 'Nilai',
+    align: 'right',
+    className: 'font-mono text-xs',
+    render: (row) => row.value,
+  },
 ]
 
 export default function SettingsPage() {
@@ -23,14 +43,18 @@ export default function SettingsPage() {
         environment yang sedang aktif.
       </p>
 
-      <dl className="divide-y divide-edge rounded-xl border border-edge bg-surface-raised">
-        {DETAILS.map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between gap-4 px-6 py-4">
-            <dt className="text-sm text-content-muted">{label}</dt>
-            <dd className="font-mono text-sm text-content">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <Card
+        title="Konfigurasi environment"
+        description="Diturunkan dari env.defaults.ts, hanya-baca."
+        actions={
+          <Badge tone={env.useMock ? 'warning' : 'success'} dot>
+            {env.useMock ? 'mode mock' : 'API asli'}
+          </Badge>
+        }
+        bodyClassName="p-0"
+      >
+        <Table columns={COLUMNS} rows={SETTINGS} rowKey={(row) => row.key} />
+      </Card>
     </div>
   )
 }
