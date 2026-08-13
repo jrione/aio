@@ -11,6 +11,7 @@
  */
 import type { ReactNode } from 'react'
 
+import { EmptyState } from '@/components/ui/EmptyState.tsx'
 import { cn } from '@/utils/cn.ts'
 
 export interface TableColumn<Row> {
@@ -71,8 +72,21 @@ export function Table<Row>({ columns, rows, rowKey, empty, caption, className }:
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-5 py-10">
-                {empty ?? <p className="text-center text-content-muted">Tidak ada data.</p>}
+              {/*
+                Tanpa padding sendiri: `EmptyState` sudah membawa miliknya, dan
+                `empty` yang dioper pemanggil hampir selalu `EmptyState` juga.
+                Padding ganda membuat tabel kosong jadi jauh lebih tinggi
+                daripada keadaan kosong di tempat lain.
+              */}
+              <td colSpan={columns.length} className="p-0">
+                {/*
+                  Bawaannya `EmptyState`, bukan sebaris teks abu-abu.
+                  Issue #14 meminta keadaan kosong yang seragam, dan yang paling
+                  mudah menyimpang justru yang bawaan — ia muncul di tabel yang
+                  pemanggilnya lupa memikirkan keadaan kosongnya, yaitu tepat di
+                  tempat yang tidak ada yang memeriksa.
+                */}
+                {empty ?? <EmptyState title="Tidak ada data" />}
               </td>
             </tr>
           ) : (
