@@ -61,21 +61,22 @@ pindah sendiri ke port berikutnya.
 
 ## Script npm
 
-| Script                 | Fungsi                                                                         |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `npm run dev`          | Dev server + HMR                                                               |
-| `npm run build`        | Type check lalu build produksi ke `dist/`                                      |
-| `npm run preview`      | Serve hasil build secara lokal                                                 |
-| `npm run typecheck`    | `tsc --noEmit` saja                                                            |
-| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                         |
-| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                                      |
-| `npm run format`       | Prettier, tulis perubahan                                                      |
-| `npm run format:check` | Prettier, hanya cek                                                            |
-| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                               |
-| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai        |
-| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                                  |
-| `npm run check:styles` | Gagal bila ada CSS per-komponen, atau dua blok tema gelap menyimpang           |
-| `npm run check:layers` | Gagal bila batas lapisan dilanggar (5 aturan; lihat `scripts/check-layers.ts`) |
+| Script                 | Fungsi                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `npm run dev`          | Dev server + HMR                                                                 |
+| `npm run build`        | Type check lalu build produksi ke `dist/`                                        |
+| `npm run preview`      | Serve hasil build secara lokal                                                   |
+| `npm run typecheck`    | `tsc --noEmit` saja                                                              |
+| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                           |
+| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                                        |
+| `npm run format`       | Prettier, tulis perubahan                                                        |
+| `npm run format:check` | Prettier, hanya cek                                                              |
+| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                                 |
+| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai          |
+| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                                    |
+| `npm run check:styles` | Gagal bila ada CSS per-komponen, atau dua blok tema gelap menyimpang             |
+| `npm run check:layers` | Gagal bila batas lapisan dilanggar (5 aturan; lihat `scripts/check-layers.ts`)   |
+| `npm run check:bundle` | Gagal bila initial bundle atau sebuah chunk melewati anggarannya (butuh `dist/`) |
 
 ## Styling: Tailwind CSS
 
@@ -288,21 +289,22 @@ bagian [Autentikasi](#autentikasi).
 `() => import(...)`. Terlihat di output `npm run build`:
 
 ```
-dist/assets/NotFoundPage-*.js           0.65 kB
-dist/assets/SettingsPage-*.js          10.58 kB
-dist/assets/LoginPage-*.js              1.91 kB
-dist/assets/DeploymentsPage-*.js        6.56 kB
-dist/assets/DeploymentDetailPage-*.js   7.90 kB
-dist/assets/DashboardPage-*.js        361.73 kB   ← Recharts
+dist/assets/NotFoundPage-*.js           0.61 kB
+dist/assets/LoginPage-*.js              1.85 kB
+dist/assets/DeploymentsPage-*.js        6.23 kB
+dist/assets/DashboardPage-*.js          6.62 kB
+dist/assets/DeploymentDetailPage-*.js   6.62 kB
+dist/assets/SettingsPage-*.js          10.63 kB
+dist/assets/TrendChart-*.js           356.27 kB   ← Recharts
 ```
 
-Baris terakhir itu bukan salah baca: Recharts adalah dependency terbesar di
-aplikasi ini, dan seluruh biayanya jatuh ke chunk dashboard. Pengguna yang cuma
-membuka halaman login atau daftar deployment tidak menanggungnya — tapi angka
-segitu tetap jadi target pertama Issue #16.
+Baris terakhir bukan halaman melainkan **satu komponen**. Grafik tren dipisah
+sendiri di Issue #16 supaya kartu metrik dan tabel aktivitas tidak ikut menunggu
+Recharts selesai diunduh — lihat [Ukuran bundle](#ukuran-bundle).
 
-Selagi chunk-nya diunduh, `RouteFallback` yang tampil. Skeleton yang benar
-dibangun di Issue #14.
+Selagi chunk-nya diunduh, `RouteFallback` yang tampil — skeleton seukuran
+halaman, bukan spinner. Alasannya di bagian
+[Komponen yang rusak vs. data yang gagal](#komponen-yang-rusak-vs-data-yang-gagal).
 
 > Deep link (`/settings` diketik langsung di address bar) berfungsi di
 > `npm run dev` dan `npm run preview` karena keduanya sudah punya SPA
@@ -1092,6 +1094,85 @@ bisa dihitung langsung sebagai sRGB), pada tema terang maupun gelap:
 Semuanya lolos WCAG AA (≥ 4,5 untuk teks normal). Yang paling tipis adalah
 tautan sekunder di tema terang pada 4,51 — lolos, tapi itulah angka yang perlu
 diperhatikan bila palet `content-muted` kelak diubah.
+
+## Ukuran bundle
+
+> Status: **terpasang** · Issue #16 · `npm run check:bundle`
+
+### Yang benar-benar diunduh sebelum halaman pertama tampil
+
+Bukan berkas terbesar, melainkan apa yang dirujuk `index.html`: skrip entry,
+seluruh `modulepreload`, dan stylesheet-nya.
+
+```
+assets/vendor-react-*.js     185.13 kB   gzip 57.57 kB
+assets/vendor-router-*.js     88.42 kB   gzip 28.74 kB
+assets/http-*.js              45.69 kB   gzip 15.30 kB
+assets/index-*.js             32.74 kB   gzip 10.30 kB
+assets/index-*.css            31.69 kB   gzip  6.76 kB
+assets/button-variants-*.js    2.20 kB   gzip  1.12 kB
+assets/env-*.js                1.63 kB   gzip  0.83 kB
+
+TOTAL                                    gzip 120.62 kB dari 300 kB
+```
+
+### Tiga hal yang membuatnya begitu
+
+**Grafik dipisah dari halamannya.** Recharts sekitar 100 kB gzip — lebih besar
+daripada seluruh sisa halaman dashboard digabung. Diimpor statis, ia menahan
+kartu metrik dan tabel aktivitas ikut menunggu: ketiganya baru muncul setelah
+chunk terbesar selesai, padahal dua di antaranya tidak membutuhkannya sama
+sekali. Dengan `lazy()`, `DashboardPage` menyusut dari 361 kB jadi **6,6 kB** dan
+ketiga widget datang sesuai kesiapannya masing-masing. Total byte-nya sama; yang
+berubah adalah kapan pengguna mulai bisa membaca sesuatu.
+
+**Library besar dipisah dari kode aplikasi.** Tanpa itu React dan React Router
+tinggal sekamar dengan kode kita, dan setiap deploy — sekecil apa pun
+perubahannya — mengubah hash chunk itu sehingga pengguna mengunduh ulang ~93 kB
+gzip yang isinya sama persis. Sekarang yang berganti hash cuma `index-*.js`
+sebesar **10,3 kB gzip**. Totalnya naik 0,57 kB; yang dihemat pada kunjungan
+kedua jauh lebih besar.
+
+Yang dipisah hanya yang **besar dan stabil**. Memecah tiap dependency jadi chunk
+sendiri justru merugikan: puluhan request kecil lebih mahal daripada satu berkas
+sedang.
+
+**Aset yang tidak dipakai dihapus.** `src/assets/` berisi tiga berkas sisa
+template Vite (`hero.png`, `react.svg`, `vite.svg`) yang tidak dirujuk satu baris
+kode pun. Keduanya tidak pernah ikut ke bundle — Vite memang tidak memancarkan
+aset yang tak dirujuk — jadi menghapusnya tidak mengubah satu byte pun di
+`dist/`. Yang berkurang adalah waktu orang berikutnya menebak-nebak apakah
+berkas itu masih dipakai.
+
+Seluruh dependency di `package.json` diperiksa terhadap impor sungguhan;
+**semuanya terpakai**, jadi tidak ada yang dicabut.
+
+### Kenapa ini gate, bukan catatan
+
+Kedua acceptance criteria Issue #16 sudah benar sebelum satu baris pun disentuh.
+Yang membuat `check:bundle` ada bukan keadaan hari ini, melainkan bulan ketiga:
+satu `import` yang salah tempat — sebuah komponen yang menarik library grafik ke
+bundle utama — cukup untuk melipatgandakan halaman pertama, dan tidak ada yang
+menyadarinya sampai seseorang kebetulan membuka tab Network.
+
+Peringatan bawaan Vite tidak cukup: ia hanya membuat build berwarna kuning, dan
+build yang lolos dengan peringatan tetap lolos.
+
+```bash
+npm run build && npm run check:bundle
+```
+
+### Chunk mock tetap dipancarkan, dan itu disengaja
+
+`VITE_USE_MOCK` dibaca saat runtime lewat `env`, bukan sebagai konstanta
+harfiah, jadi Rollup tidak bisa membuktikan cabangnya mati dan tetap memancarkan
+`mock-transport-*.js` (5,6 kB gzip). Berkas itu **tidak pernah diminta browser**
+saat mock mati — sudah diverifikasi: `chunkMock: 0`.
+
+Membuatnya benar-benar lenyap menuntut `import.meta.env.VITE_USE_MOCK` ditulis
+harfiah di `http.ts`, dan itu melanggar aturan "env hanya dibaca di satu tempat"
+yang dijaga sejak Issue #8. Menukar aturan arsitektur dengan 5,6 kB yang tidak
+pernah diunduh siapa pun bukan pertukaran yang menguntungkan.
 
 ## Konfigurasi environment
 

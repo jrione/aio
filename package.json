@@ -19,7 +19,8 @@
     "env:check": "node scripts/env-example.ts --check",
     "check:lang": "node scripts/check-language.ts",
     "check:styles": "node scripts/check-styles.ts",
-    "check:layers": "node scripts/check-layers.ts"
+    "check:layers": "node scripts/check-layers.ts",
+    "check:bundle": "node scripts/check-bundle.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
