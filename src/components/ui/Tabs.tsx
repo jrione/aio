@@ -78,7 +78,19 @@ export function Tabs({ items, value, onChange, label, className }: TabsProps) {
         ref={listRef}
         role="tablist"
         aria-label={label}
-        className="flex gap-1 border-b border-edge"
+        /*
+         * Bergulir mendatar di dalam dirinya sendiri, bukan melebarkan halaman.
+         *
+         * Empat tab berlabel Indonesia sudah melewati 360 px, dan tanpa
+         * `overflow-x-auto` kelebihannya keluar dari kotaknya lalu membuat
+         * **seluruh halaman** bisa digeser ke samping — persis yang dilarang
+         * acceptance criteria Issue #15. Gejalanya menyesatkan pula: yang
+         * terlihat melebar justru elemen lain yang kebetulan `position: fixed`.
+         *
+         * `shrink-0` di tiap tab menjaga labelnya tidak diremas jadi terpotong
+         * saat ruangnya kurang; yang benar adalah digulir, bukan dipepet.
+         */
+        className="flex gap-1 overflow-x-auto border-b border-edge"
       >
         {items.map((item) => {
           const selected = item.id === value
@@ -101,7 +113,7 @@ export function Tabs({ items, value, onChange, label, className }: TabsProps) {
               // seharusnya ikut fokusable hanya demi menampung listener.
               onKeyDown={handleKeyDown}
               className={cn(
-                '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50',
+                '-mb-px shrink-0 border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50',
                 selected
                   ? 'border-brand-500 text-brand-600'
                   : 'border-transparent text-content-muted hover:text-content',
