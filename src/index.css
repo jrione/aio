@@ -38,26 +38,24 @@
 
   /*
    * Warna semantik untuk status pipeline, deployment, dan alert.
-   * Tiap warna punya tiga tingkat dengan peran tetap:
-   *   -soft   → latar badge / banner
-   *   (dasar) → ikon, border, indikator
-   *   -strong → teks di atas latar -soft (kontras AA)
+   *
+   * Hanya tingkat **dasar** yang statis. Ia dipakai untuk ikon, border, titik
+   * indikator, dan garis grafik — semuanya berdiri di atas `surface`, dan
+   * lightness-nya di tengah (0,63–0,77) sehingga tetap terbaca di latar terang
+   * maupun gelap. Nilai yang sama di kedua tema justru yang diinginkan: hijau
+   * "berhasil" harus hijau yang sama di mana pun.
+   *
+   * Tingkat `-soft` (latar badge) dan `-strong` (teks di atasnya) **berganti
+   * mengikuti tema** — lihat blok token tema di bawah. Sampai Issue #14 keduanya
+   * statis, dan akibatnya badge status tampil sebagai pil hijau muda menyala di
+   * atas kartu gelap. Kontrasnya tetap AA karena pasangannya memang dirancang
+   * berpasangan, jadi tidak ada yang gagal — cuma terlihat seperti tempelan dari
+   * aplikasi lain.
    */
-  --color-success-soft: oklch(0.962 0.044 156.743);
   --color-success: oklch(0.723 0.219 149.579);
-  --color-success-strong: oklch(0.448 0.119 151.328);
-
-  --color-warning-soft: oklch(0.973 0.071 103.193);
   --color-warning: oklch(0.769 0.188 70.08);
-  --color-warning-strong: oklch(0.473 0.137 46.201);
-
-  --color-danger-soft: oklch(0.971 0.013 17.38);
   --color-danger: oklch(0.637 0.237 25.331);
-  --color-danger-strong: oklch(0.444 0.177 26.899);
-
-  --color-info-soft: oklch(0.977 0.013 236.62);
   --color-info: oklch(0.685 0.169 237.323);
-  --color-info-strong: oklch(0.443 0.11 240.79);
 
   /* Font family. `font-sans` dipakai body, `font-display` untuk heading. */
   --font-sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -87,6 +85,15 @@
   --color-content: var(--content);
   --color-content-muted: var(--content-muted);
   --color-edge: var(--edge);
+
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-strong: var(--danger-strong);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
 }
 
 @layer base {
@@ -104,6 +111,12 @@
    * bekerja. Tanpa itu, media query tetap menang dan pilihan pengguna diam-diam
    * diabaikan — persis keadaan yang paling sulit ditemukan lewat membaca kode,
    * karena dua dari tiga kombinasinya tetap terlihat benar.
+   *
+   * Kedua blok gelap di bawah **harus** identik isinya. Itu duplikasi yang tidak
+   * bisa dihindari — CSS tidak punya cara menggabungkan sebuah media query
+   * dengan sebuah selector biasa — jadi kesamaannya dijaga `npm run check:styles`
+   * alih-alih diserahkan pada kedisiplinan. Menambah token tema berarti
+   * menambahnya di ketiga blok, dan gate-nya yang mengingatkan bila terlupa.
    */
   :root {
     color-scheme: light;
@@ -114,6 +127,15 @@
     --content: oklch(0.21 0.034 264.665);
     --content-muted: oklch(0.551 0.027 264.364);
     --edge: oklch(0.928 0.006 264.531);
+
+    --success-soft: oklch(0.962 0.044 156.743);
+    --success-strong: oklch(0.448 0.119 151.328);
+    --warning-soft: oklch(0.973 0.071 103.193);
+    --warning-strong: oklch(0.473 0.137 46.201);
+    --danger-soft: oklch(0.971 0.013 17.38);
+    --danger-strong: oklch(0.444 0.177 26.899);
+    --info-soft: oklch(0.977 0.013 236.62);
+    --info-strong: oklch(0.443 0.11 240.79);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -126,6 +148,15 @@
       --content: oklch(0.967 0.003 264.542);
       --content-muted: oklch(0.707 0.022 261.325);
       --edge: oklch(0.373 0.034 259.733);
+
+      --success-soft: oklch(0.29 0.055 152);
+      --success-strong: oklch(0.845 0.145 152);
+      --warning-soft: oklch(0.3 0.055 80);
+      --warning-strong: oklch(0.87 0.14 90);
+      --danger-soft: oklch(0.3 0.07 25);
+      --danger-strong: oklch(0.84 0.125 25);
+      --info-soft: oklch(0.3 0.055 238);
+      --info-strong: oklch(0.85 0.11 238);
     }
   }
 
@@ -138,6 +169,15 @@
     --content: oklch(0.967 0.003 264.542);
     --content-muted: oklch(0.707 0.022 261.325);
     --edge: oklch(0.373 0.034 259.733);
+
+    --success-soft: oklch(0.29 0.055 152);
+    --success-strong: oklch(0.845 0.145 152);
+    --warning-soft: oklch(0.3 0.055 80);
+    --warning-strong: oklch(0.87 0.14 90);
+    --danger-soft: oklch(0.3 0.07 25);
+    --danger-strong: oklch(0.84 0.125 25);
+    --info-soft: oklch(0.3 0.055 238);
+    --info-strong: oklch(0.85 0.11 238);
   }
 
   body {

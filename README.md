@@ -74,7 +74,7 @@ pindah sendiri ke port berikutnya.
 | `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                               |
 | `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai        |
 | `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                                  |
-| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                           |
+| `npm run check:styles` | Gagal bila ada CSS per-komponen, atau dua blok tema gelap menyimpang           |
 | `npm run check:layers` | Gagal bila batas lapisan dilanggar (5 aturan; lihat `scripts/check-layers.ts`) |
 
 ## Styling: Tailwind CSS
@@ -109,6 +109,9 @@ badge, nama dasar untuk ikon/border, `-strong` untuk teks di atas latar `-soft`:
 ```tsx
 <span className="bg-success-soft text-success-strong ring ring-success/30">Passed</span>
 ```
+
+Hanya tingkat **dasar** yang statis; `-soft` dan `-strong` ikut berganti tema.
+Alasannya di bagian [Dark mode](#dark-mode-tiga-keadaan-dua-blok-yang-harus-sama).
 
 Token tema (`surface`, `surface-raised`, `surface-sunken`, `content`,
 `content-muted`, `edge`) dideklarasikan lewat `@theme inline` di atas CSS
@@ -1013,6 +1016,82 @@ baru.
 Preferensi notifikasi disimpan **per pengguna**, bukan satu untuk semua. Mock
 yang membagi satu objek ke seluruh akun akan menyembunyikan kesalahan paling
 klasik di endpoint semacam ini: lupa menyaring menurut pemiliknya.
+
+## Responsif, aksesibilitas & dark mode
+
+> Status: **terpasang** · Issue #15
+
+### Dark mode: tiga keadaan, dua blok yang harus sama
+
+Tema punya tiga keadaan — `system`, `light`, `dark` — dan dua di antaranya
+menghasilkan tampilan gelap: yang mengikuti `prefers-color-scheme`, dan yang
+dipilih pengguna lewat `data-theme="dark"`. CSS tidak punya cara menggabungkan
+sebuah media query dengan selector biasa, jadi nilainya terpaksa ditulis dua
+kali.
+
+Duplikasinya tidak berbahaya; yang berbahaya adalah **menyimpang**. Token baru
+yang hanya ditambahkan di satu blok menghasilkan bug yang hampir mustahil
+ditemukan lewat membaca kode: temanya benar bagi pengguna yang memilih gelap
+secara eksplisit, dan salah bagi yang mengandalkan setelan sistem — dua kelompok
+yang tidak pernah melihat layar satu sama lain.
+
+Karena itu kesamaannya dijadikan gate, bukan diserahkan pada kedisiplinan:
+
+```
+✓ Tema gelap konsisten: 14 token sama di kedua blok
+```
+
+**Warna semantik ikut berganti tema.** Sampai Issue #14, `-soft` dan `-strong`
+statis, dan akibatnya `<Badge tone="success">` tampil sebagai pil hijau muda
+menyala di atas kartu gelap. Kontrasnya tetap AA — pasangan `-soft`/`-strong`
+memang dirancang berpasangan — jadi tidak ada yang gagal; ia cuma terlihat
+seperti tempelan dari aplikasi lain. Tingkat **dasar** tetap statis dengan
+sengaja: ia dipakai untuk ikon, border, dan garis grafik, dan hijau "berhasil"
+harus hijau yang sama di mana pun.
+
+> Ruang lingkup issue menyebut "dark mode via strategi `class` Tailwind". Yang
+> dipakai adalah `data-theme` di `<html>` — padanan langsungnya di Tailwind v4,
+> dan lebih tepat karena nilainya tiga, bukan dua. Sebuah class hanya bisa
+> menyatakan ada/tidak ada; `system` butuh keadaan ketiga.
+
+### Tautan lompat ke konten
+
+Sidebar berisi belasan tautan. Tanpa tautan lompat, pengguna keyboard harus
+menekan Tab melewati semuanya di **setiap** halaman hanya untuk sampai ke isinya.
+
+Tautannya tak terlihat sampai difokus — 1×1 piksel saat tersembunyi, 139×36 saat
+menerima fokus. `<main>` diberi `tabIndex={-1}` supaya benar-benar bisa menerima
+fokus; tanpa itu browser menggulir ke sana tapi fokus tetap tertinggal di
+tautannya, dan Tab berikutnya kembali ke sidebar.
+
+### Tidak ada gulir mendatar di 360 px
+
+Diperiksa di sembilan halaman. Yang ditemukan justru bukan tabel — semua tabel
+memang sudah bergulir di dalam wadahnya sendiri sejak Issue #7 — melainkan
+**baris tab**: empat tab berlabel Indonesia melewati 360 px, dan kelebihannya
+keluar dari kotaknya lalu membuat seluruh halaman bisa digeser ke samping.
+
+Gejalanya menyesatkan: yang terlihat melebar di alat ukur justru wadah toast,
+yang `position: fixed` dan kebetulan ikut melebar mengikuti halaman. Memperbaiki
+toast tidak akan mengubah apa pun. Yang benar adalah `overflow-x-auto` pada
+`role="tablist"` plus `shrink-0` di tiap tab — digulir, bukan dipepet.
+
+### Kontras
+
+Diukur dari warna terkomputasi di browser (lewat canvas, karena `oklch()` tidak
+bisa dihitung langsung sebagai sRGB), pada tema terang maupun gelap:
+
+|              | Terang     | Gelap      |
+| ------------ | ---------- | ---------- |
+| Teks utama   | 17,75      | 16,13      |
+| Teks redup   | 4,84       | 6,82       |
+| Badge status | 6,48–7,64  | 7,67–9,28  |
+| Header tabel | 4,84       | 5,64       |
+| Tautan       | 4,51–17,75 | 7,74–13,33 |
+
+Semuanya lolos WCAG AA (≥ 4,5 untuk teks normal). Yang paling tipis adalah
+tautan sekunder di tema terang pada 4,51 — lolos, tapi itulah angka yang perlu
+diperhatikan bila palet `content-muted` kelak diubah.
 
 ## Konfigurasi environment
 
