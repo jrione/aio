@@ -4,7 +4,13 @@
  * File ini adalah kesepakatan antara backend, service, mock, dan UI. Mock dan
  * service sama-sama mengetiknya dari sini, jadi data tiruan yang menyimpang
  * dari bentuk sungguhannya gagal saat type check — bukan saat backend dipasang.
+ *
+ * `DeploymentEnvironment` dan `EnvironmentFilter` dulu tinggal di sini juga.
+ * Sejak modul Deployments (Issue #12) ikut memakainya, keduanya pindah ke
+ * `@/services/environment.ts` — kosakata yang dipakai dua domain tidak boleh
+ * dimiliki salah satunya.
  */
+import type { DeploymentEnvironment, EnvironmentFilter } from '@/services/environment.ts'
 
 /** Nada visual metrik, dipetakan langsung ke `tone` pada `<Badge>`. */
 export type MetricTone = 'success' | 'warning' | 'danger' | 'info'
@@ -42,29 +48,7 @@ export interface Activity {
   readonly at: string
 }
 
-/**
- * Lingkungan tempat sesuatu dijalankan.
- *
- * Daftarnya tetap di sisi klien untuk sekarang. Backend sungguhan biasanya
- * menyajikannya sebagai endpoint tersendiri — lingkungan datang dan pergi
- * seiring project — dan saat itu tiba yang berubah cuma file ini beserta satu
- * hook baru, bukan komponen yang memakainya.
- */
-export type DeploymentEnvironment = 'production' | 'staging' | 'sandbox'
-
-/**
- * Penyaring yang berlaku untuk seluruh widget dashboard sekaligus.
- *
- * Ditaruh di satu tipe, bukan diulang sebagai parameter lepas di tiap service,
- * supaya menambah dimensi penyaring berikutnya (mis. tim atau region) tidak
- * berarti menyunting tiga tanda tangan fungsi yang harus tetap sejalan.
- */
-export interface DashboardFilter {
-  /** Kosongkan untuk seluruh lingkungan. */
-  environment?: DeploymentEnvironment
-}
-
-export interface ActivityFilter extends DashboardFilter {
+export interface ActivityFilter extends EnvironmentFilter {
   page?: number
   pageSize?: number
   /** Kosongkan untuk semua status. */
@@ -89,7 +73,7 @@ export interface TrendPoint {
   readonly failed: number
 }
 
-export interface TrendFilter extends DashboardFilter {
+export interface TrendFilter extends EnvironmentFilter {
   range: TrendRange
 }
 

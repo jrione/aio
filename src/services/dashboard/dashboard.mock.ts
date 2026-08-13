@@ -26,12 +26,12 @@ import type {
   Activity,
   ActivityStatus,
   DashboardSummary,
-  DeploymentEnvironment,
   DeploymentTrend,
   Metric,
   TrendPoint,
   TrendRange,
 } from '@/services/dashboard/dashboard.types.ts'
+import { ENVIRONMENTS, type DeploymentEnvironment } from '@/services/environment.ts'
 import type { MockRoute } from '@/services/mock/mock-transport.ts'
 import { paginate } from '@/services/paginated.ts'
 
@@ -225,8 +225,6 @@ const readStatus = (query: URLSearchParams): ActivityStatus | undefined => {
   const raw = query.get('status')
   return ACTIVITY_STATUSES.find((status) => status === raw)
 }
-
-const ENVIRONMENTS: readonly DeploymentEnvironment[] = ['production', 'staging', 'sandbox']
 
 const readEnvironment = (query: URLSearchParams): DeploymentEnvironment | undefined => {
   const raw = query.get('environment')

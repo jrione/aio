@@ -8,11 +8,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { dashboardService } from '@/services/dashboard/dashboard.service.ts'
-import type {
-  ActivityFilter,
-  DashboardFilter,
-  TrendFilter,
-} from '@/services/dashboard/dashboard.types.ts'
+import type { ActivityFilter, TrendFilter } from '@/services/dashboard/dashboard.types.ts'
+import type { EnvironmentFilter } from '@/services/environment.ts'
 
 /**
  * Pabrik query key.
@@ -29,7 +26,7 @@ import type {
  */
 export const dashboardKeys = {
   all: ['dashboard'] as const,
-  summary: (filter: DashboardFilter) => [...dashboardKeys.all, 'summary', filter] as const,
+  summary: (filter: EnvironmentFilter) => [...dashboardKeys.all, 'summary', filter] as const,
   trend: (filter: TrendFilter) => [...dashboardKeys.all, 'trend', filter] as const,
   activities: (filter: ActivityFilter) => [...dashboardKeys.all, 'activities', filter] as const,
 }
@@ -45,7 +42,7 @@ export const dashboardKeys = {
  */
 const KEEP_PREVIOUS = { placeholderData: keepPreviousData } as const
 
-export function useDashboardSummary(filter: DashboardFilter) {
+export function useDashboardSummary(filter: EnvironmentFilter) {
   return useQuery({
     queryKey: dashboardKeys.summary(filter),
     // `signal` datang dari TanStack Query dan diteruskan sampai ke `fetch`,

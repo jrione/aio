@@ -12,16 +12,16 @@ import { Badge } from '@/components/ui/Badge.tsx'
 import { Card } from '@/components/ui/Card.tsx'
 import { EmptyState } from '@/components/ui/EmptyState.tsx'
 import { Skeleton } from '@/components/ui/Skeleton.tsx'
-import { formatAgo, numberFormat } from '@/features/dashboard/formatters.ts'
+import { formatAgo, numberFormat } from '@/features/formatters.ts'
 import { useDashboardSummary } from '@/services/dashboard/dashboard.queries.ts'
-import type { DashboardFilter } from '@/services/dashboard/dashboard.types.ts'
+import type { EnvironmentFilter } from '@/services/environment.ts'
 
 /** Empat kartu, karena itu jumlah yang akan muncul. */
 const PLACEHOLDERS = ['a', 'b', 'c', 'd']
 
 const GRID = 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'
 
-export function MetricGrid({ filter }: { filter: DashboardFilter }) {
+export function MetricGrid({ filter }: { filter: EnvironmentFilter }) {
   const summary = useDashboardSummary(filter)
 
   return (

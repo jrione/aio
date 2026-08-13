@@ -13,16 +13,16 @@
 import type {
   Activity,
   ActivityFilter,
-  DashboardFilter,
   DashboardSummary,
   DeploymentTrend,
   TrendFilter,
 } from '@/services/dashboard/dashboard.types.ts'
+import type { EnvironmentFilter } from '@/services/environment.ts'
 import { http } from '@/services/http.ts'
 import type { Paginated } from '@/services/paginated.ts'
 
 export const dashboardService = {
-  getSummary: ({ environment }: DashboardFilter, signal?: AbortSignal) =>
+  getSummary: ({ environment }: EnvironmentFilter, signal?: AbortSignal) =>
     http.get<DashboardSummary>('/dashboard/summary', { query: { environment }, signal }),
 
   getTrend: ({ range, environment }: TrendFilter, signal?: AbortSignal) =>

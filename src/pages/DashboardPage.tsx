@@ -18,18 +18,11 @@ import { useState } from 'react'
 
 import { Select } from '@/components/ui/Select.tsx'
 import { ActivityFeed } from '@/features/dashboard/ActivityFeed.tsx'
-import { ENVIRONMENT_LABEL } from '@/features/dashboard/formatters.ts'
 import { MetricGrid } from '@/features/dashboard/MetricGrid.tsx'
 import { TrendChart } from '@/features/dashboard/TrendChart.tsx'
-import type { DeploymentEnvironment, TrendRange } from '@/services/dashboard/dashboard.types.ts'
-
-/** `''` berarti seluruh lingkungan. */
-const ENVIRONMENT_OPTIONS = [
-  { value: '', label: 'Semua lingkungan' },
-  { value: 'production', label: ENVIRONMENT_LABEL.production },
-  { value: 'staging', label: ENVIRONMENT_LABEL.staging },
-  { value: 'sandbox', label: ENVIRONMENT_LABEL.sandbox },
-] as const
+import { ENVIRONMENT_OPTIONS } from '@/features/formatters.ts'
+import type { TrendRange } from '@/services/dashboard/dashboard.types.ts'
+import type { DeploymentEnvironment } from '@/services/environment.ts'
 
 export default function DashboardPage() {
   const [environment, setEnvironment] = useState<DeploymentEnvironment | undefined>(undefined)

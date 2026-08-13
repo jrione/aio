@@ -19,6 +19,7 @@ import { ErrorState } from '@/components/ui/ErrorState.tsx'
 import { Input } from '@/components/ui/Input.tsx'
 import { Modal } from '@/components/ui/Modal.tsx'
 import { Pagination } from '@/components/ui/Pagination.tsx'
+import { SearchInput } from '@/components/ui/SearchInput.tsx'
 import { Select } from '@/components/ui/Select.tsx'
 import { Skeleton } from '@/components/ui/Skeleton.tsx'
 import { Spinner } from '@/components/ui/Spinner.tsx'
@@ -93,6 +94,8 @@ export default function DevUiPage() {
   const [tab, setTab] = useState('ringkasan')
   const [page, setPage] = useState(3)
   const [email, setEmail] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [committed, setCommitted] = useState('(belum ada)')
 
   return (
     <div className="flex flex-col gap-10">
@@ -161,6 +164,27 @@ export default function DevUiPage() {
             hint="Ukuran kecil."
             size="sm"
           />
+        </div>
+      </Section>
+
+      <Section
+        title="SearchInput"
+        hint="Nilai yang diketik dan nilai yang berlaku dipisah oleh jeda 300 ms."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SearchInput
+            id="demo-cari"
+            label="Cari layanan"
+            value={keyword}
+            onChange={(next) => {
+              setKeyword(next)
+              setCommitted(next === '' ? '(kosong)' : next)
+            }}
+            hint="Ketik cepat — nilai di bawah baru berubah setelah berhenti mengetik."
+          />
+          <div className="self-end pb-1 text-sm text-content-muted">
+            Nilai yang diterapkan: <span className="font-mono text-content">{committed}</span>
+          </div>
         </div>
       </Section>
 

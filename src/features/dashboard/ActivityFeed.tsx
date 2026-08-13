@@ -14,20 +14,11 @@ import { Pagination } from '@/components/ui/Pagination.tsx'
 import { Select } from '@/components/ui/Select.tsx'
 import { Skeleton } from '@/components/ui/Skeleton.tsx'
 import { Table, type TableColumn } from '@/components/ui/Table.tsx'
-import {
-  ENVIRONMENT_LABEL,
-  formatAgo,
-  KIND_LABEL,
-  numberFormat,
-  STATUS_LABEL,
-  STATUS_TONE,
-} from '@/features/dashboard/formatters.ts'
+import { KIND_LABEL, STATUS_LABEL, STATUS_TONE } from '@/features/dashboard/formatters.ts'
+import { ENVIRONMENT_LABEL, formatAgo, numberFormat } from '@/features/formatters.ts'
 import { useActivities } from '@/services/dashboard/dashboard.queries.ts'
-import type {
-  Activity,
-  ActivityStatus,
-  DashboardFilter,
-} from '@/services/dashboard/dashboard.types.ts'
+import type { Activity, ActivityStatus } from '@/services/dashboard/dashboard.types.ts'
+import type { EnvironmentFilter } from '@/services/environment.ts'
 
 /** `''` berarti "semua status" — nilai kosong yang sah untuk sebuah `<option>`. */
 const STATUS_OPTIONS = [
@@ -75,7 +66,7 @@ const COLUMNS: TableColumn<Activity>[] = [
 
 const SKELETON_ROWS = ['a', 'b', 'c', 'd', 'e']
 
-export function ActivityFeed({ filter }: { filter: DashboardFilter }) {
+export function ActivityFeed({ filter }: { filter: EnvironmentFilter }) {
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState<ActivityStatus | undefined>(undefined)
 
