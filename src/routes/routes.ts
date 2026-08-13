@@ -138,7 +138,16 @@ export const ROUTE_TABLE = [
     id: 'settings',
     path: '/settings',
     access: 'protected',
-    permission: 'settings:manage',
+    /*
+     * Tanpa izin khusus, dan itu keputusan (Issue #13).
+     *
+     * Isinya profil, password, dan preferensi milik penggunanya sendiri. Seorang
+     * `viewer` yang tidak bisa membuka halaman ini berarti tidak bisa mengganti
+     * passwordnya sendiri — akun yang dicurigai bocor jadi tidak bisa diamankan
+     * pemiliknya. Pengaturan tingkat sistem nanti tinggal di route tersendiri
+     * dengan `settings:manage`.
+     */
+    permission: null,
     layout: 'app',
     title: 'Settings',
     nav: { icon: 'settings-icon', group: 'sistem' },

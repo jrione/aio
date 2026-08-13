@@ -14,7 +14,22 @@
  * berarti membangun ulang tabel lokalisasi setiap kali komponen dirender —
  * ongkos yang tidak terlihat sampai jumlah barisnya bertambah.
  */
+import type { Role } from '@/services/auth/auth.types.ts'
 import { ENVIRONMENTS, type DeploymentEnvironment } from '@/services/environment.ts'
+
+/**
+ * Nama peran untuk ditampilkan.
+ *
+ * Peran dikirim server dalam bahasa Inggris karena ia bagian dari kontrak;
+ * yang dilihat pengguna tidak harus mengikutinya. Keterangannya ikut di sini
+ * supaya halaman yang menampilkan peran tidak perlu menjelaskannya sendiri
+ * dengan kalimat yang berbeda-beda.
+ */
+export const ROLE_LABEL: Record<Role, { name: string; description: string }> = {
+  admin: { name: 'Admin', description: 'Akses penuh, termasuk pengaturan sistem.' },
+  operator: { name: 'Operator', description: 'Menjalankan dan membatalkan deployment.' },
+  viewer: { name: 'Viewer', description: 'Hanya membaca; tidak bisa mengubah apa pun.' },
+}
 
 /** Nama lingkungan tidak diterjemahkan: itu istilah teknis yang dipakai apa adanya. */
 export const ENVIRONMENT_LABEL: Record<DeploymentEnvironment, string> = {

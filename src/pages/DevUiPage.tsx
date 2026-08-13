@@ -23,6 +23,7 @@ import { SearchInput } from '@/components/ui/SearchInput.tsx'
 import { Select } from '@/components/ui/Select.tsx'
 import { Skeleton } from '@/components/ui/Skeleton.tsx'
 import { Spinner } from '@/components/ui/Spinner.tsx'
+import { Switch } from '@/components/ui/Switch.tsx'
 import { Table, type TableColumn } from '@/components/ui/Table.tsx'
 import { Tabs } from '@/components/ui/Tabs.tsx'
 import { useToast, type ToastTone } from '@/components/ui/toast-context.ts'
@@ -96,6 +97,7 @@ export default function DevUiPage() {
   const [email, setEmail] = useState('')
   const [keyword, setKeyword] = useState('')
   const [committed, setCommitted] = useState('(belum ada)')
+  const [notify, setNotify] = useState(true)
 
   return (
     <div className="flex flex-col gap-10">
@@ -185,6 +187,23 @@ export default function DevUiPage() {
           <div className="self-end pb-1 text-sm text-content-muted">
             Nilai yang diterapkan: <span className="font-mono text-content">{committed}</span>
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Switch"
+        hint="Berlaku seketika. Untuk pilihan yang menunggu tombol Simpan, checkbox yang benar."
+      >
+        <div className="flex flex-col gap-4">
+          <Switch
+            checked={notify}
+            onChange={setNotify}
+            label="Kirim email saat deployment gagal"
+            hint="Berlaku untuk seluruh lingkungan."
+          />
+          <Switch checked={false} onChange={() => undefined} label="Nonaktif, mati" disabled />
+          <Switch checked onChange={() => undefined} label="Nonaktif, nyala" disabled />
+          <Switch checked={notify} onChange={setNotify} aria-label="Tanpa label terlihat" />
         </div>
       </Section>
 

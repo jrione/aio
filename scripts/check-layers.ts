@@ -19,11 +19,24 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
+/**
+ * Batas lapisan punya dua bentuk, dan memaksakan keduanya jadi satu bentuk
+ * membuat salah satunya canggung:
+ *
+ *   - **`allowedFrom`** — "hanya ini yang boleh masuk". Cocok untuk modul
+ *     sempit dengan sedikit pemakai sah (token, sinyal 401, mock).
+ *   - **`deniedFrom`** — "ini yang tidak boleh keluar". Cocok untuk arah impor
+ *     antar lapisan, tempat pemakai sahnya justru hampir semua orang dan
+ *     mendaftarnya satu per satu berarti daftar itu harus diperbarui setiap kali
+ *     ada folder baru.
+ */
 interface LayerRule {
   /** Modul yang aksesnya dibatasi, dalam bentuk alias `@/…`. */
   readonly restricted: string
   /** Direktori (relatif terhadap root) yang boleh mengimpornya. */
-  readonly allowedFrom: readonly string[]
+  readonly allowedFrom?: readonly string[]
+  /** Direktori yang dilarang mengimpornya. Selain itu boleh. */
+  readonly deniedFrom?: readonly string[]
   readonly reason: string
 }
 
@@ -48,6 +61,15 @@ const RULES: readonly LayerRule[] = [
     reason:
       'Token hanya ditulis lapisan auth dan dibaca lapisan HTTP. Pembaca lain\n' +
       '    berarti token bocor ke tempat yang tidak mengelolanya.',
+  },
+  {
+    restricted: '@/features/',
+    deniedFrom: ['src/services'],
+    reason:
+      'Lapisan service tidak boleh tahu-menahu soal fitur. Arah impornya satu\n' +
+      '    arah: fitur memanggil service, tidak pernah sebaliknya. Sekali dibalik,\n' +
+      '    "siapa memakai siapa" berhenti bisa dijawab dengan membaca satu file —\n' +
+      '    dan mock yang cuma butuh satu tipe ikut menyeret separuh aplikasi.',
   },
   {
     restricted: '@/services/unauthorized.ts',
@@ -94,8 +116,13 @@ const sourceFiles = readdirSync(join(root, 'src'), { recursive: true, withFileTy
 /** Path dibandingkan dengan pemisah `/` agar hasilnya sama di Windows dan Linux. */
 const normalize = (file: string): string => file.split(sep).join('/')
 
-const isAllowed = (file: string, rule: LayerRule): boolean =>
-  rule.allowedFrom.some((allowed) => file === allowed || file.startsWith(`${allowed}/`))
+const isWithin = (file: string, directory: string): boolean =>
+  file === directory || file.startsWith(`${directory}/`)
+
+const isAllowed = (file: string, rule: LayerRule): boolean => {
+  if (rule.deniedFrom) return !rule.deniedFrom.some((denied) => isWithin(file, denied))
+  return (rule.allowedFrom ?? []).some((allowed) => isWithin(file, allowed))
+}
 
 interface Violation {
   file: string
