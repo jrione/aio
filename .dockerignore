@@ -1,0 +1,15 @@
+# Yang tidak perlu ikut ke build context. Selain memperkecil dan mempercepat,
+# ini juga yang menjaga `.env` lokal tidak pernah ikut terbawa ke image.
+node_modules
+dist
+.git
+.github
+docs
+.env
+.env.*
+!.env.example
+*.log
+.vite
+.claude
+ISSUES.md
+prompt.md
