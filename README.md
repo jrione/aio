@@ -2,7 +2,10 @@
 
 Frontend _All-In-One DevOps Dashboard_. Single Page Application berbasis Vite + React.
 
-Rencana kerja lengkap ada di `ISSUES.md`; dokumentasi penuh menyusul di Issue #17.
+Rencana kerja lengkap ada di `ISSUES.md`.
+
+**Baru pertama kali di repo ini?** [Menjalankan](#menjalankan) → [Script npm](#script-npm)
+→ [Struktur](#struktur). Mau men-deploy? Langsung ke [Deployment](#deployment).
 
 ---
 
@@ -47,11 +50,26 @@ default Node di sebagian mesin masih 20.15.x dan akan gagal.
 ## Menjalankan
 
 ```bash
-nvm use            # Node 24, sesuai .nvmrc
+nvm use                # Node 24, sesuai .nvmrc
 npm install
 cp .env.example .env   # opsional — tanpa ini, nilai default yang dipakai
 npm run dev            # http://localhost:3000
 ```
+
+Buka <http://localhost:3000>, lalu masuk dengan salah satu
+[akun demo](#akun-demo-mode-mock) — mis. `admin@aio.dev` / `admin123`. Backend
+tidak diperlukan: `VITE_USE_MOCK` bernilai `true` secara default, dan seluruh
+endpoint dilayani mock di dalam browser.
+
+Sebelum membuka PR, jalankan seluruh gate:
+
+```bash
+npm run typecheck && npm run lint && npm run lint:types && npm run format:check \
+  && npm run check:lang && npm run check:styles && npm run check:layers \
+  && npm run env:check && npm run build && npm run check:bundle
+```
+
+Semuanya juga dijalankan otomatis di CI — lihat `.github/workflows/ci.yml`.
 
 Port dev server diatur lewat `VITE_DEV_PORT` (default `3000`). Nilainya
 divalidasi saat start — salah ketik atau port di luar rentang 1–65535 langsung
@@ -1217,10 +1235,76 @@ Variabel saat ini:
 | `VITE_API_TIMEOUT`  | number  | `15000`       | Timeout request (Issue #8)        |
 | `VITE_USE_MOCK`     | boolean | `true`        | Switch mock ↔ API asli (Issue #8) |
 
+## Deployment
+
+> Status: **terpasang** · Issue #17 · `deploy/`
+
+Hasil `npm run build` adalah berkas statis. Server apa pun bisa menyajikannya —
+tapi ada **satu aturan** yang kalau terlewat membuat aplikasi tampak rusak dengan
+cara yang menyesatkan:
+
+> Setiap permintaan yang tidak cocok dengan berkas nyata dibalas `index.html`
+> berstatus **200** — **kecuali** yang di bawah `/assets/`, yang dibalas **404**
+> apa adanya.
+
+Bagian pertama sudah umum diketahui: tanpa itu, menekan F5 di `/settings`
+menghasilkan 404 dari server dan aplikasinya tidak pernah sempat berjalan.
+
+Bagian kedua yang sering terlewat. Kalau fallback berlaku juga untuk `/assets/`,
+chunk yang sudah tidak ada dibalas HTML berstatus 200, browser mencoba
+mengurainya sebagai JavaScript, dan yang muncul adalah
+`Uncaught SyntaxError: Unexpected token '<'` — pesan yang tidak menyebut-nyebut
+konfigurasi server, di berkas yang tidak pernah ditulis siapa pun. Dengan 404
+yang sejujurnya, aplikasi menangkapnya sebagai kegagalan memuat chunk dan
+menawarkan "muat ulang halaman".
+
+### Docker
+
+```bash
+docker build -t aio-devops .
+docker run --rm -p 8080:8080 aio-devops
+```
+
+Dua tahap: Node membangun, nginx menyajikan. Image akhirnya tidak membawa Node,
+`node_modules`, maupun source — hanya `dist/` dan nginx. Anggaran bundle ikut
+diperiksa di dalam build, jadi image yang kelewat besar tidak pernah sempat jadi.
+
+Seluruh `VITE_*` dibaca **saat build**, bukan saat container berjalan:
+
+```bash
+docker build \
+  --build-arg VITE_API_BASE_URL=https://api.contoh.id \
+  --build-arg VITE_APP_ENV=production \
+  -t aio-devops:production .
+```
+
+Satu image = satu konfigurasi lingkungan.
+
+### Host lain
+
+`deploy/README.md` berisi potongan siap pakai untuk Caddy, Netlify, Vercel,
+Apache, dan CloudFront, plus tiga perintah `curl` untuk memeriksa hasilnya
+sendiri. Yang paling sering keliru — dan satu-satunya yang tidak akan ketahuan
+sampai deploy berikutnya — adalah aset hilang yang membalas 200.
+
+### Cache
+
+| Berkas        | Header                                |
+| ------------- | ------------------------------------- |
+| `/assets/*`   | `public, max-age=31536000, immutable` |
+| `/index.html` | `no-cache, must-revalidate`           |
+
+`index.html` yang di-cache adalah penyebab paling umum "aplikasinya rusak setelah
+deploy": browser memakai HTML lama, meminta chunk yang sudah dihapus, dan gagal
+terus sampai cache-nya kedaluwarsa.
+
 ## Struktur
 
 ```
 aio-devops/
+├── .github/workflows/   CI: seluruh gate + build
+├── deploy/              nginx.conf + panduan fallback SPA per host
+├── docs/rancangan/      rancangan platform (Keycloak, Jenkins, Vault, K8s, …)
 ├── public/              aset statis, disalin apa adanya
 ├── scripts/             utilitas dev (dijalankan langsung oleh Node)
 ├── src/
@@ -1259,7 +1343,9 @@ aio-devops/
 │   ├── index.css        satu-satunya CSS: direktif Tailwind + design token
 │   ├── main.tsx
 │   └── vite-env.d.ts
+├── .dockerignore
 ├── .editorconfig        sumber indentasi, EOL, lebar baris (dibaca Prettier)
+├── Dockerfile           build Node → sajikan nginx, dua tahap
 ├── .oxlintrc.json       konfigurasi linter
 ├── env.defaults.ts      sumber tunggal variabel environment
 ├── tsconfig.json        termasuk sumber tunggal path alias `@/`

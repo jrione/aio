@@ -1,0 +1,80 @@
+# Menjalankan seluruh gate yang sama dengan yang dipakai di mesin lokal.
+#
+# Daftarnya sengaja ditulis satu per satu, bukan digabung jadi satu perintah
+# `npm run check-all`. Alasannya praktis: GitHub menampilkan tiap langkah
+# terpisah, jadi yang gagal langsung terlihat dari daftar tanpa perlu membuka
+# log — dan langkah yang lolos tetap dijalankan meski ada yang gagal sebelumnya
+# berkat `if: always()`, sehingga satu kali push memberi seluruh daftar
+# masalahnya sekaligus, bukan satu per satu.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # Push beruntun ke branch yang sama membatalkan run sebelumnya. Hasil dari
+  # commit yang sudah tertimpa tidak ada gunanya, dan runner-nya lebih baik
+  # dipakai untuk commit terbaru.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Dibaca dari .nvmrc supaya versi Node di CI tidak bisa menyimpang
+          # dari yang dipakai di mesin pengembang.
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm ci` bukan `npm install`: ia mematuhi package-lock.json apa adanya
+      # dan gagal bila lock-nya tidak sinkron dengan package.json — persis yang
+      # diinginkan di CI.
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        if: always()
+        run: npm run lint
+
+      - name: Lint (type-aware)
+        if: always()
+        run: npm run lint:types
+
+      - name: Format
+        if: always()
+        run: npm run format:check
+
+      - name: TypeScript-only
+        if: always()
+        run: npm run check:lang
+
+      - name: Styling terpusat & tema gelap konsisten
+        if: always()
+        run: npm run check:styles
+
+      - name: Batas lapisan
+        if: always()
+        run: npm run check:layers
+
+      - name: Variabel environment
+        if: always()
+        run: npm run env:check
+
+      - name: Build
+        if: always()
+        run: npm run build
+
+      - name: Anggaran bundle
+        # Butuh dist/, jadi ia satu-satunya yang benar-benar bergantung pada
+        # langkah sebelumnya — dan karena itu tidak memakai `if: always()`.
+        run: npm run check:bundle
