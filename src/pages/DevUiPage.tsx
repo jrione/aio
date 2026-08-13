@@ -68,6 +68,37 @@ const ENV_OPTIONS = [
   { value: 'development', label: 'Development' },
 ]
 
+/**
+ * Tombol yang benar-benar meruntuhkan halaman ini.
+ *
+ * Error dilempar saat **render**, bukan di dalam `onClick`. Bedanya menentukan:
+ * error di event handler tidak ditangkap error boundary sama sekali — React
+ * tidak sedang merender di situ — jadi tombol yang melempar langsung akan
+ * terlihat seolah batasnya tidak bekerja. Menyalakan state lalu melempar di
+ * render berikutnya adalah cara meniru kegagalan yang sesungguhnya.
+ *
+ * Tinggal di halaman ini, bukan di `CrashFallback.tsx`, supaya tidak ikut ke
+ * bundle produksi: `/dev/ui` hanya terdaftar saat `npm run dev`.
+ */
+function CrashTrigger() {
+  const [crash, setCrash] = useState(false)
+
+  if (crash) throw new Error('Percobaan error boundary dari /dev/ui')
+
+  return (
+    <div>
+      <Button
+        variant="danger"
+        onClick={() => {
+          setCrash(true)
+        }}
+      >
+        Picu error render
+      </Button>
+    </div>
+  )
+}
+
 /** Judul seksi katalog — dipakai berulang, jadi tidak diketik ulang tiap kali. */
 function Section({
   title,
@@ -365,6 +396,13 @@ export default function DevUiPage() {
             />
           </Card>
         </div>
+      </Section>
+
+      <Section
+        title="Error boundary"
+        hint="Batas setingkat halaman. Sidebar dan header tetap hidup; berpindah menu memulihkannya."
+      >
+        <CrashTrigger />
       </Section>
 
       <Section title="Pagination" hint="Halaman jauh diringkas jadi elipsis.">

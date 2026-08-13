@@ -61,21 +61,21 @@ pindah sendiri ke port berikutnya.
 
 ## Script npm
 
-| Script                 | Fungsi                                                                    |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `npm run dev`          | Dev server + HMR                                                          |
-| `npm run build`        | Type check lalu build produksi ke `dist/`                                 |
-| `npm run preview`      | Serve hasil build secara lokal                                            |
-| `npm run typecheck`    | `tsc --noEmit` saja                                                       |
-| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                    |
-| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                                 |
-| `npm run format`       | Prettier, tulis perubahan                                                 |
-| `npm run format:check` | Prettier, hanya cek                                                       |
-| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                          |
-| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai   |
-| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                             |
-| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                      |
-| `npm run check:layers` | Gagal bila batas lapisan dilanggar (HTTP client, mock, token, sinyal 401) |
+| Script                 | Fungsi                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `npm run dev`          | Dev server + HMR                                                               |
+| `npm run build`        | Type check lalu build produksi ke `dist/`                                      |
+| `npm run preview`      | Serve hasil build secara lokal                                                 |
+| `npm run typecheck`    | `tsc --noEmit` saja                                                            |
+| `npm run lint`         | oxlint — cepat, dipakai sambil ngoding                                         |
+| `npm run lint:types`   | oxlint + aturan yang butuh informasi tipe                                      |
+| `npm run format`       | Prettier, tulis perubahan                                                      |
+| `npm run format:check` | Prettier, hanya cek                                                            |
+| `npm run env:example`  | Regenerate `.env.example` dari `env.defaults.ts`                               |
+| `npm run env:check`    | Gagal bila `.env.example` tidak sinkron, atau ada variabel tak terpakai        |
+| `npm run check:lang`   | Gagal bila ada file JavaScript di source tree                                  |
+| `npm run check:styles` | Gagal bila ada file CSS per-komponen                                           |
+| `npm run check:layers` | Gagal bila batas lapisan dilanggar (5 aturan; lihat `scripts/check-layers.ts`) |
 
 ## Styling: Tailwind CSS
 
@@ -478,6 +478,81 @@ gangguan jaringan diulang. Aturannya hanya ada di satu tempat.
 Tipe error-nya didaftarkan global lewat module augmentation di
 `query-client.ts`, jadi `query.error` sudah bertipe `ApiError` di semua komponen
 tanpa satu generic pun ditulis manual.
+
+### Komponen yang rusak vs. data yang gagal
+
+> Status: **terpasang** · Issue #14
+
+Dua kegagalan yang sering disamakan, padahal ditangani mekanisme yang berbeda:
+
+|              | Datanya gagal datang              | Komponennya rusak                    |
+| ------------ | --------------------------------- | ------------------------------------ |
+| Contoh       | Server balas `500`, koneksi putus | `undefined.map is not a function`    |
+| Ditangani    | `<QueryState>`                    | `<ErrorBoundary>`                    |
+| Cakupan      | Satu widget                       | Satu halaman                         |
+| Pulih dengan | Tombol coba lagi (request ulang)  | Berpindah halaman, atau render ulang |
+
+**`ErrorBoundary` adalah satu-satunya komponen kelas di project ini.** Bukan
+pilihan gaya — React tidak menyediakan padanan hook untuk
+`getDerivedStateFromError`, dan sampai hari ini masih begitu.
+
+Yang **tidak** ditangkapnya, dan ini sering disalahpahami: error di dalam event
+handler, `setTimeout`, dan promise yang gagal. Di situ React tidak sedang
+merender, jadi tidak ada yang runtuh. Request yang gagal memang bukan urusannya.
+
+### Batasnya di dalam layout, bukan di luarnya
+
+Inilah satu-satunya bagian yang menentukan apakah acceptance criteria Issue #14
+terpenuhi. Kalau batas membungkus layout, halaman yang runtuh membawa serta
+sidebar, header, dan menu — dan yang tersisa memang layar kosong dengan satu
+pesan. Di dalam layout, yang runtuh cuma isi `<Outlet>`.
+
+```
+AppLayout                      ← tetap hidup
+└── RouteGuard                 ← tetap hidup
+    └── RouteErrorBoundary     ← menangkap di sini
+        └── Suspense
+            └── Halaman        ← yang runtuh
+```
+
+`Suspense` sengaja **di dalam** batas: `import()` yang gagal — chunk yang hilang
+setelah deploy ulang — ikut tertangkap alih-alih menggantung selamanya di layar
+memuat.
+
+**Batas pulih sendiri saat berpindah halaman.** `location.key` dioper sebagai
+`resetKeys`. Tanpa itu, batas yang terlanjur menampilkan layar gagal akan tetap
+begitu meski pengguna menekan menu lain — URL-nya berpindah, isinya tidak — dan
+satu-satunya jalan keluar jadi memuat ulang halaman.
+
+Ada batas kedua di `App.tsx`, di atas `<RouterProvider>`. Ia hanya kebagian yang
+runtuh di luar jangkauan batas halaman: provider, atau router itu sendiri.
+Tampilannya sengaja tidak memakai `<Link>` atau apa pun dari router — kalau yang
+runtuh justru router-nya, tampilan gagal yang bergantung padanya akan ikut
+melempar, dan hasilnya layar putih yang sedang dihindari.
+
+### Chunk yang hilang bukan error biasa
+
+Setelah deploy ulang, nama berkas chunk berubah. Tab yang sudah lama terbuka
+masih memegang nama lama, dan `import()` untuk halaman yang belum pernah dibuka
+akan gagal — bukan karena kodenya salah, tapi karena berkasnya memang sudah
+tidak ada.
+
+Menawarkan "coba lagi" di situ keliru: percobaan keberapa pun gagal sama persis,
+dan pengguna menyimpulkan aplikasinya rusak. Kegagalan semacam ini dikenali dari
+pesannya (berbeda-beda di tiap browser, jadi ketiganya dicocokkan) dan yang
+ditawarkan adalah **muat ulang halaman**.
+
+### Pesan error tidak ditampilkan apa adanya
+
+Berbeda dari `<QueryState>`, tempat pesannya datang dari `ApiError` dan memang
+sudah ditulis untuk dibaca manusia. Error render datang dari mana saja:
+`Cannot read properties of undefined (reading 'map')` tidak memberi tahu pengguna
+apa pun kecuali bahwa ada yang rusak. Di `npm run dev` pesannya tetap
+dimunculkan — di sana pembacanya memang orang yang bisa memperbaikinya.
+
+Batasnya bisa dicoba langsung lewat tombol **Picu error render** di `/dev/ui`.
+Error-nya dilempar saat render, bukan di `onClick`, karena yang terakhir memang
+tidak akan tertangkap sama sekali.
 
 ### Menambah domain baru
 
@@ -991,6 +1066,8 @@ aio-devops/
 ├── src/
 │   ├── assets/          gambar & ikon yang di-import
 │   ├── components/      komponen lintas halaman
+│   │   ├── ErrorBoundary.tsx  penangkap error render (satu-satunya kelas)
+│   │   ├── CrashFallback.tsx  tampilan gagal setingkat halaman & akar
 │   │   └── ui/          design system: Button, Table, Modal, …
 │   ├── config/          konfigurasi runtime (env)
 │   ├── features/

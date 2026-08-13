@@ -19,6 +19,7 @@ import { AppLayout } from '@/layouts/AppLayout.tsx'
 import { AuthLayout } from '@/layouts/AuthLayout.tsx'
 import { BareLayout } from '@/layouts/BareLayout.tsx'
 import { DocumentTitle } from '@/routes/DocumentTitle.tsx'
+import { RouteErrorBoundary } from '@/routes/RouteErrorBoundary.tsx'
 import { RouteFallback } from '@/routes/RouteFallback.tsx'
 import { RouteGuard } from '@/routes/RouteGuard.tsx'
 import { ACTIVE_ROUTES, type RouteDefinition, type RouteLayout } from '@/routes/routes.ts'
@@ -36,12 +37,26 @@ const toRouteObject = (route: RouteDefinition): RouteObject => {
     // React Router memperlakukan path kosong sebagai index route di dalam
     // layout, jadi '/' dipetakan ke `index: true`.
     ...(route.path === '/' ? { index: true } : { path: route.path }),
+    /*
+     * Urutan pembungkusnya bukan selera.
+     *
+     * `RouteErrorBoundary` ada di dalam guard, bukan di luarnya: halaman yang
+     * runtuh tidak boleh membuat penjagaan akses ikut runtuh, dan sebaliknya
+     * pengalihan ke `/login` bukan sesuatu yang layak ditampilkan sebagai
+     * "halaman ini bermasalah".
+     *
+     * `Suspense` ada di dalam batas, bukan sebaliknya, supaya `import()` yang
+     * gagal — chunk yang hilang setelah deploy ulang — ikut tertangkap dan
+     * ditawari muat ulang alih-alih menggantung selamanya di layar memuat.
+     */
     element: (
       <DocumentTitle title={route.title}>
         <RouteGuard access={route.access} permission={route.permission}>
-          <Suspense fallback={<RouteFallback />}>
-            <Page />
-          </Suspense>
+          <RouteErrorBoundary>
+            <Suspense fallback={<RouteFallback />}>
+              <Page />
+            </Suspense>
+          </RouteErrorBoundary>
         </RouteGuard>
       </DocumentTitle>
     ),

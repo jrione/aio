@@ -14,6 +14,8 @@ import { useEffect } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router'
 
+import { AppCrash } from '@/components/CrashFallback.tsx'
+import { ErrorBoundary } from '@/components/ErrorBoundary.tsx'
 import { ToastProvider } from '@/components/ui/ToastProvider.tsx'
 import { bootstrapSession } from '@/features/auth/session.ts'
 import { router } from '@/routes/router.tsx'
@@ -32,10 +34,25 @@ export default function App() {
   }, [])
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
-    </QueryClientProvider>
+    /*
+     * Batas terluar — jaring pengaman terakhir.
+     *
+     * Yang biasanya menangkap error adalah batas setingkat halaman di
+     * `router.tsx`, dan itu jauh lebih baik karena kerangka aplikasi tetap
+     * hidup. Batas ini hanya kebagian yang runtuh di luar jangkauannya: provider
+     * di atas router, atau router itu sendiri. Tanpa batas ini, keduanya berarti
+     * layar putih tanpa satu pun petunjuk.
+     *
+     * Tidak ada `resetKeys`: kalau akar aplikasi yang runtuh, tidak ada
+     * perpindahan halaman yang bisa menyembuhkannya — router-nya mungkin ikut
+     * mati. Satu-satunya jalan keluar yang jujur adalah memuat ulang.
+     */
+    <ErrorBoundary fallback={AppCrash}>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
