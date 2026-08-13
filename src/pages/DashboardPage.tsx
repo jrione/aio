@@ -14,15 +14,37 @@
  * Tidak ada `fetch`, tidak ada URL, tidak ada nama parameter query di file ini
  * maupun di widget-nya. Semua lewat hook domain — dijaga `npm run check:layers`.
  */
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
+import { Card } from '@/components/ui/Card.tsx'
 import { Select } from '@/components/ui/Select.tsx'
+import { Skeleton } from '@/components/ui/Skeleton.tsx'
 import { ActivityFeed } from '@/features/dashboard/ActivityFeed.tsx'
 import { MetricGrid } from '@/features/dashboard/MetricGrid.tsx'
-import { TrendChart } from '@/features/dashboard/TrendChart.tsx'
 import { ENVIRONMENT_OPTIONS } from '@/features/formatters.ts'
 import type { TrendRange } from '@/services/dashboard/dashboard.types.ts'
 import type { DeploymentEnvironment } from '@/services/environment.ts'
+
+/**
+ * Grafik dimuat terpisah dari halamannya (Issue #16).
+ *
+ * Recharts adalah dependency terbesar di aplikasi ini — sekitar 105 kB gzip,
+ * lebih besar daripada seluruh sisa halaman dashboard digabung. Diimpor statis,
+ * ia menahan kartu metrik dan tabel aktivitas ikut menunggu: ketiganya baru
+ * muncul setelah chunk terbesar selesai diunduh, padahal dua di antaranya tidak
+ * membutuhkannya sama sekali.
+ *
+ * Dengan `lazy()`, ketiga widget datang sesuai kesiapannya masing-masing. Total
+ * byte yang diunduh sama; yang berubah adalah kapan pengguna mulai bisa membaca
+ * sesuatu.
+ *
+ * `.then` dipakai karena `TrendChart` adalah named export, sementara `lazy()`
+ * menuntut modul ber-`default`. Membuat file-nya default-export hanya demi ini
+ * akan membuatnya menyimpang dari seluruh komponen lain di project.
+ */
+const TrendChart = lazy(() =>
+  import('@/features/dashboard/TrendChart.tsx').then((module) => ({ default: module.TrendChart })),
+)
 
 export default function DashboardPage() {
   const [environment, setEnvironment] = useState<DeploymentEnvironment | undefined>(undefined)
@@ -55,7 +77,18 @@ export default function DashboardPage() {
       </div>
 
       <MetricGrid filter={filter} />
-      <TrendChart filter={filter} range={range} onRangeChange={setRange} />
+
+      {/* Fallback-nya sengaja seukuran kartu grafik yang sungguhan, supaya
+          tabel aktivitas di bawahnya tidak melompat saat grafiknya tiba. */}
+      <Suspense
+        fallback={
+          <Card title="Tren deployment" description="Menyiapkan grafik…">
+            <Skeleton className="h-72 w-full" />
+          </Card>
+        }
+      >
+        <TrendChart filter={filter} range={range} onRangeChange={setRange} />
+      </Suspense>
       <ActivityFeed filter={filter} />
     </div>
   )

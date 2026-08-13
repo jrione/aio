@@ -76,6 +76,34 @@ export default defineConfig(({ mode }) => {
       // Menggantikan plugin vite-tsconfig-paths sejak Vite 8.
       tsconfigPaths: true,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          /**
+           * Memisahkan library pihak ketiga yang besar dan jarang berubah dari
+           * kode aplikasi (Issue #16).
+           *
+           * Tanpa ini, React dan React Router tinggal di chunk yang sama dengan
+           * kode kita — dan setiap deploy, sekecil apa pun perubahannya,
+           * mengubah hash chunk itu sehingga pengguna mengunduh ulang ~93 kB
+           * gzip yang isinya sebenarnya sama persis. Dengan pemisahan ini yang
+           * berganti hash cuma bagian yang memang berubah.
+           *
+           * Yang dipisah hanya yang **besar dan stabil**. Memecah setiap
+           * dependency jadi chunk sendiri justru merugikan: puluhan request
+           * kecil lebih mahal daripada satu berkas sedang, dan chunk yang
+           * terlalu kecil tidak menghemat apa pun saat di-cache.
+           */
+          manualChunks: (id: string) => {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('react-router')) return 'vendor-router'
+            if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/'))
+              return 'vendor-react'
+            return undefined
+          },
+        },
+      },
+    },
     server: {
       port: readPort(env, 'VITE_DEV_PORT'),
       // Gagal terang-terangan kalau port sudah dipakai, daripada diam-diam
