@@ -41,8 +41,8 @@ export interface NavGroup {
 
 /**
  * Pengelompokan menu di sidebar, urutannya sesuai urutan di sini.
- * Modul domain (Pipelines, Deployments, Servers) menyusul di Issue #12 dan
- * tinggal menumpang di grup `operasional`.
+ * Modul domain pertama (Deployments) menumpang di grup `operasional`; modul
+ * berikutnya cukup menambah satu entri di sana juga.
  */
 export const NAV_GROUPS = [
   { id: 'operasional', label: 'Operasional' },
@@ -103,6 +103,36 @@ export const ROUTE_TABLE = [
     nav: { icon: 'dashboard-icon', group: 'operasional' },
     devOnly: false,
     load: () => import('@/pages/DashboardPage.tsx'),
+  },
+  {
+    id: 'deployments',
+    path: '/deployments',
+    access: 'protected',
+    permission: 'deployment:read',
+    layout: 'app',
+    title: 'Deployments',
+    nav: { icon: 'deployment-icon', group: 'operasional' },
+    devOnly: false,
+    load: () => import('@/pages/DeploymentsPage.tsx'),
+  },
+  {
+    /*
+     * Halaman detail tidak bermenu, tapi tetap tinggal di tabel yang sama.
+     *
+     * Itu yang membuatnya ikut mendapat penjagaan akses, judul header, dan
+     * `document.title` tanpa satu baris pun ditulis ulang. Urutannya harus di
+     * bawah `/deployments`; `useCurrentRoute` memakai yang cocok pertama, dan
+     * kedua pola itu hanya dibedakan oleh ada-tidaknya segmen kedua.
+     */
+    id: 'deploymentDetail',
+    path: '/deployments/:id',
+    access: 'protected',
+    permission: 'deployment:read',
+    layout: 'app',
+    title: 'Detail deployment',
+    nav: false,
+    devOnly: false,
+    load: () => import('@/pages/DeploymentDetailPage.tsx'),
   },
   {
     id: 'settings',

@@ -14,7 +14,7 @@
  * menu bertingkat, barulah pertimbangkan library — dan komponen ini tidak
  * perlu ikut berubah.
  */
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/Button.tsx'
 import { Icon } from '@/components/Icon.tsx'
@@ -42,6 +42,17 @@ export function Modal({
 }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
+  /*
+   * Id judul dibuat per instans, bukan konstanta `"modal-title"`.
+   *
+   * Halaman detail deployment (Issue #12) merender dua dialog konfirmasi
+   * sekaligus — hanya satu yang terbuka, tapi keduanya ada di DOM. Dengan id
+   * tetap, keduanya memakai id yang sama; `aria-labelledby` lalu menunjuk
+   * elemen pertama yang ditemukan, dan salah satu dialog dibacakan dengan judul
+   * milik dialog lain. Tidak ada yang terlihat salah di layar.
+   */
+  const titleId = useId()
+
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
@@ -55,7 +66,7 @@ export function Modal({
   return (
     <dialog
       ref={dialogRef}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
       // Escape memicu 'cancel', tombol close memicu 'close'. Keduanya
       // dialirkan ke onClose supaya state pemanggil tidak pernah tertinggal
       // menganggap dialog masih terbuka.
@@ -77,7 +88,7 @@ export function Modal({
     >
       <div className="flex items-start justify-between gap-4 border-b border-edge px-5 py-4">
         <div className="min-w-0">
-          <h2 id="modal-title" className="font-display font-medium text-content">
+          <h2 id={titleId} className="font-display font-medium text-content">
             {title}
           </h2>
           {description && <p className="mt-1 text-sm text-content-muted">{description}</p>}

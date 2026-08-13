@@ -37,14 +37,15 @@ import { Card } from '@/components/ui/Card.tsx'
 import { EmptyState } from '@/components/ui/EmptyState.tsx'
 import { Select } from '@/components/ui/Select.tsx'
 import { Skeleton } from '@/components/ui/Skeleton.tsx'
-import { formatBucket, formatFull, numberFormat } from '@/features/dashboard/formatters.ts'
+import { formatBucket } from '@/features/dashboard/formatters.ts'
+import { formatFull, numberFormat } from '@/features/formatters.ts'
 import { useDeploymentTrend } from '@/services/dashboard/dashboard.queries.ts'
 import type {
-  DashboardFilter,
   DeploymentTrend,
   TrendPoint,
   TrendRange,
 } from '@/services/dashboard/dashboard.types.ts'
+import type { EnvironmentFilter } from '@/services/environment.ts'
 import { cn } from '@/utils/cn.ts'
 
 const RANGE_OPTIONS = [
@@ -153,7 +154,7 @@ function TrendSummary({ trend }: { trend: DeploymentTrend }) {
 }
 
 interface TrendChartProps {
-  filter: DashboardFilter
+  filter: EnvironmentFilter
   range: TrendRange
   onRangeChange: (range: TrendRange) => void
 }

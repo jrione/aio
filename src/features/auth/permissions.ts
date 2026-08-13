@@ -30,12 +30,21 @@ import type { Role, User } from '@/services/auth/auth.types.ts'
  * Dinamai `<objek>:<aksi>` supaya daftarnya tetap terbaca setelah tumbuh, dan
  * supaya jelas bahwa "melihat" dan "mengubah" adalah dua izin berbeda.
  */
-export type Permission = 'dashboard:read' | 'deployment:run' | 'settings:manage' | 'user:manage'
+export type Permission =
+  'dashboard:read' | 'deployment:read' | 'deployment:run' | 'settings:manage' | 'user:manage'
 
+/**
+ * Membaca dan menjalankan sengaja dipisah jadi dua izin.
+ *
+ * Seorang `viewer` boleh membuka daftar deployment dan membaca log-nya — itu
+ * justru inti pekerjaannya saat sedang menyelidiki gangguan — tapi tidak boleh
+ * merilis, membatalkan, atau menghapus apa pun. Kalau keduanya digabung jadi
+ * satu izin, satu-satunya cara memberi akses baca adalah memberi akses tulis.
+ */
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  admin: ['dashboard:read', 'deployment:run', 'settings:manage', 'user:manage'],
-  operator: ['dashboard:read', 'deployment:run'],
-  viewer: ['dashboard:read'],
+  admin: ['dashboard:read', 'deployment:read', 'deployment:run', 'settings:manage', 'user:manage'],
+  operator: ['dashboard:read', 'deployment:read', 'deployment:run'],
+  viewer: ['dashboard:read', 'deployment:read'],
 }
 
 /**

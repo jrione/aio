@@ -248,6 +248,20 @@ import { ROUTES } from '@/routes/routes.ts'
 <Link to="/setings">Settings</Link>          // ❌ lolos type check, mati saat diklik
 ```
 
+**Route bersegmen dinamis.** `ROUTES.deploymentDetail` bertipe
+`'/deployments/:id'` — belum bisa dipakai `<Link>` apa adanya. Isi segmennya
+dengan `buildPath`, yang membaca nama parameternya **dari polanya sendiri**:
+
+```tsx
+import { buildPath } from '@/routes/build-path.ts'
+
+buildPath(ROUTES.deploymentDetail, { id: 'dep-004' }) // ✅ '/deployments/dep-004'
+buildPath(ROUTES.deploymentDetail, { di: 'dep-004' }) // ❌ gagal saat type check
+```
+
+Tanpa itu, satu-satunya cara membuat tautan detail adalah menempel string di
+komponen — persis kebiasaan yang dilarang dua paragraf di atas.
+
 **Menu sidebar.** Field `nav` merangkap konfigurasi menu: isi objek
 `{ icon, group }` untuk memunculkannya di sidebar, atau `false` untuk halaman
 yang tidak bermenu (login, 404). Grup dan urutannya didefinisikan di
@@ -271,11 +285,18 @@ bagian [Autentikasi](#autentikasi).
 `() => import(...)`. Terlihat di output `npm run build`:
 
 ```
-dist/assets/NotFoundPage-*.js    0.67 kB
-dist/assets/LoginPage-*.js       0.96 kB
-dist/assets/SettingsPage-*.js    1.01 kB
-dist/assets/DashboardPage-*.js   2.15 kB
+dist/assets/NotFoundPage-*.js           0.65 kB
+dist/assets/SettingsPage-*.js           1.11 kB
+dist/assets/LoginPage-*.js              1.91 kB
+dist/assets/DeploymentsPage-*.js        6.56 kB
+dist/assets/DeploymentDetailPage-*.js   7.90 kB
+dist/assets/DashboardPage-*.js        361.73 kB   ← Recharts
 ```
+
+Baris terakhir itu bukan salah baca: Recharts adalah dependency terbesar di
+aplikasi ini, dan seluruh biayanya jatuh ke chunk dashboard. Pengguna yang cuma
+membuka halaman login atau daftar deployment tidak menanggungnya — tapi angka
+segitu tetap jadi target pertama Issue #16.
 
 Selagi chunk-nya diunduh, `RouteFallback` yang tampil. Skeleton yang benar
 dibangun di Issue #14.
@@ -319,8 +340,8 @@ perlu menulis `<h1>` sendiri.
 
 > Status: **terpasang** · Issue #7 · `src/components/ui/`
 
-Empat belas komponen dasar: `Button`, `Input`, `Select`, `Card`, `Badge`,
-`Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`,
+Lima belas komponen dasar: `Button`, `Input`, `Select`, `SearchInput`, `Card`,
+`Badge`, `Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`,
 `ErrorState`, `Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya
 terdaftar saat `npm run dev`.
 
@@ -346,6 +367,13 @@ kelas yang diketik ulang:
   Lihat konfigurasi
 </Link>
 ```
+
+**`SearchInput` memisahkan dua nilai yang sering dianggap satu:** yang sedang
+diketik, dan yang sedang berlaku. Setiap huruf mengubah yang pertama; hanya jeda
+mengetik (300 ms) yang mengubah yang kedua. Tanpa pemisahan itu, mengetik
+`billing` berarti tujuh request, tujuh entri riwayat browser, dan tabel yang
+berkedip tujuh kali. Nilai yang datang dari luar — tombol Kembali, tombol reset —
+tetap menang atas yang sedang diketik.
 
 **Belum ada library headless.** `Modal` dibangun di atas `<dialog>` +
 `showModal()` bawaan browser, yang sudah memberi focus trap sungguhan,
@@ -654,12 +682,17 @@ halaman yang akan menolaknya.
 
 ### Akun demo (mode mock)
 
-| Email                | Password      | Peran    | Terlihat olehnya    |
-| -------------------- | ------------- | -------- | ------------------- |
-| `admin@aio.dev`      | `admin123`    | admin    | semua menu          |
-| `operator@aio.dev`   | `operator123` | operator | tanpa Settings      |
-| `viewer@aio.dev`     | `viewer123`   | viewer   | hanya Dashboard     |
-| `sesipendek@aio.dev` | `sesipendek`  | operator | sesi mati ~20 detik |
+| Email                | Password      | Peran    | Terlihat olehnya                |
+| -------------------- | ------------- | -------- | ------------------------------- |
+| `admin@aio.dev`      | `admin123`    | admin    | semua menu                      |
+| `operator@aio.dev`   | `operator123` | operator | tanpa Settings                  |
+| `viewer@aio.dev`     | `viewer123`   | viewer   | Deployments tanpa satu pun aksi |
+| `sesipendek@aio.dev` | `sesipendek`  | operator | sesi mati ~20 detik             |
+
+Peran `viewer` adalah cara tercepat memeriksa bahwa `deployment:read` dan
+`deployment:run` memang dua izin berbeda: daftar dan log deployment terbuka penuh,
+sementara tombol "Deployment baru", "Batalkan", dan "Hapus" tidak ada — beserta
+dialog konfirmasinya, yang bahkan tidak ikut dirender ke DOM.
 
 Daftarnya juga tampil di halaman login saat `npm run dev`, dan lenyap seluruhnya
 dari bundle produksi.
@@ -759,6 +792,85 @@ yang sama**. Dengan `Math.random()`, grafik akan menari setiap kali data diambil
 ulang — termasuk saat pengguna cuma mengganti penyaring — dan animasi yang
 seharusnya menandai perubahan sungguhan jadi tidak berarti apa-apa.
 
+## Deployments
+
+> Status: **terpasang** · Issue #12 · `/deployments` & `/deployments/:id`
+
+Modul domain pertama, dan pola susunannya sengaja dibuat untuk ditiru modul
+berikutnya: daftar → detail → aksi. Halaman hanya merakit; seluruh isinya tinggal
+di `src/features/deployments/`.
+
+### Penyaring hidup di URL, bukan di `useState`
+
+Halaman daftar tidak punya satu pun `useState` untuk penyaring. Kata kunci,
+lingkungan, status, dan nomor halaman semuanya tinggal di query string:
+
+```
+/deployments?q=billing&env=staging&status=succeeded&page=2
+```
+
+Acceptance criteria Issue #12 memintanya agar bisa di-share dan di-bookmark, tapi
+manfaatnya lebih luas: penyaring yang cuma hidup di memori komponen akan hilang
+saat halaman dimuat ulang, tidak bisa dibuka di tab baru, tidak bisa dikirim ke
+rekan yang sedang menyelidiki hal yang sama, dan tombol Kembali akan melompati
+seluruh pekerjaan penyaringan sekaligus. Satu keputusan memperbaiki keempatnya.
+
+Konsekuensinya diterima juga: query string adalah **masukan dari luar**. Siapa
+pun bisa mengetik `?page=-3&status=meledak`, jadi pembacaannya memvalidasi dan
+menjatuhkan nilai yang tidak dikenal — bukan memercayainya.
+
+```tsx
+const [filter, setFilter] = useUrlState(deploymentFilterCodec)
+```
+
+`useUrlState` (`src/routes/useUrlState.ts`) menerima **satu codec per halaman**,
+bukan satu hook per parameter. Bentuk itu dipilih karena aturan yang melibatkan
+dua parameter sekaligus pasti muncul — mengganti penyaring harus mengembalikan
+tabel ke halaman satu — dan dengan hook per parameter, aturan seperti itu tidak
+punya tempat tinggal dan berakhir disalin ke tiap `onChange`, tempat ia bisa
+terlupa satu per satu. Di sini ia satu fungsi: `applyFilterChange`.
+
+Dua hal kecil yang membuat URL-nya enak dipakai:
+
+- **Nilai default tidak ditulis.** `?page=1` tidak menambah informasi apa pun.
+- **Mengetik mengganti entri riwayat, memilih menambahnya.** Tanpa itu, satu kata
+  yang diketik meninggalkan tujuh entri dan tombol Kembali berubah jadi tombol
+  "hapus satu huruf".
+
+### Tiga aksi, dan kenapa "edit" bukan salah satunya
+
+Sebuah deployment adalah catatan kejadian. Menyediakan form untuk menyunting
+layanan, commit, dan pemicunya berarti menyediakan cara memalsukan riwayat. Yang
+tersedia karena itu:
+
+| Aksi                | Bentuk                      | Izin             |
+| ------------------- | --------------------------- | ---------------- |
+| **Deployment baru** | `POST /deployments`         | `deployment:run` |
+| **Batalkan**        | `PATCH` status → `canceled` | `deployment:run` |
+| **Hapus catatan**   | `DELETE /deployments/:id`   | `deployment:run` |
+
+Satu-satunya atribut yang memang boleh berubah adalah statusnya, dan hanya ke
+satu arah — itulah aksi ubah di modul ini. Yang menggantikan "edit" dalam arti
+sehari-hari adalah **Jalankan ulang**, yang membuat deployment baru dengan isian
+sudah terisi, persis seperti yang sebenarnya terjadi di sistem yang dirujuknya.
+
+Server tetap memeriksa sendiri: membatalkan deployment yang sudah selesai dijawab
+`409`, bukan diserahkan pada tombol yang disembunyikan UI. Dua pengguna bisa
+menekan tombol yang sama di detik yang sama, dan yang di layar sudah usang sejak
+sepersekian detik lalu.
+
+### Mock yang benar-benar berubah
+
+Berbeda dari mock dashboard yang hanya membaca, `deployment.mock.ts` menyimpan
+perubahan: daftarnya array yang bisa berubah, dan `POST`/`PATCH`/`DELETE`
+benar-benar mengubahnya. Mutasi yang balasannya selalu sama membuat seluruh jalur
+setelahnya — invalidasi cache, daftar yang bertambah, halaman yang bergeser,
+tombol yang jadi nonaktif — tidak pernah teruji sampai backend sungguhan dipasang.
+
+Log tiap deployment **diturunkan dari statusnya**: yang gagal berhenti di tengah,
+yang dibatalkan berhenti lebih awal, yang mengantre belum mulai. Log sepanjang
+penuh untuk deployment yang gagal di detik ke-18 adalah data yang berbohong.
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -815,14 +927,20 @@ aio-devops/
 │   ├── config/          konfigurasi runtime (env)
 │   ├── features/
 │   │   ├── auth/        sesi, izin, hook login
-│   │   └── dashboard/   widget dashboard + pemformat bersamanya
+│   │   ├── dashboard/   widget dashboard + pemformat khususnya
+│   │   ├── deployments/ tabel, penyaring, dialog aksi, log
+│   │   └── formatters.ts  label & pemformat yang dipakai lebih dari satu fitur
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
 │   ├── routes/          routes.ts (sumber tunggal) + router, guard, fallback
+│   │   ├── build-path.ts   mengisi segmen dinamis dengan aman secara tipe
+│   │   └── useUrlState.ts  penyaring & pagination yang hidup di query string
 │   ├── services/        lapisan data
 │   │   ├── auth/        endpoint sesi + mock-nya
 │   │   ├── dashboard/   satu folder per domain: types, service, queries, mock
+│   │   ├── deployments/ domain kedua, dengan mutasi
 │   │   ├── mock/        backend tiruan (transport + daftar route)
+│   │   ├── environment.ts   kosakata lingkungan, dipakai dua domain
 │   │   ├── http.ts      satu-satunya pemanggil fetch di aplikasi
 │   │   ├── api-error.ts bentuk error tunggal
 │   │   ├── auth-token.ts    titik temu: auth menulis, http membaca
