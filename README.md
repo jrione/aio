@@ -286,7 +286,7 @@ bagian [Autentikasi](#autentikasi).
 
 ```
 dist/assets/NotFoundPage-*.js           0.65 kB
-dist/assets/SettingsPage-*.js           1.11 kB
+dist/assets/SettingsPage-*.js          10.58 kB
 dist/assets/LoginPage-*.js              1.91 kB
 dist/assets/DeploymentsPage-*.js        6.56 kB
 dist/assets/DeploymentDetailPage-*.js   7.90 kB
@@ -340,9 +340,9 @@ perlu menulis `<h1>` sendiri.
 
 > Status: **terpasang** · Issue #7 · `src/components/ui/`
 
-Lima belas komponen dasar: `Button`, `Input`, `Select`, `SearchInput`, `Card`,
-`Badge`, `Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`,
-`ErrorState`, `Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya
+Enam belas komponen dasar: `Button`, `Input`, `Select`, `SearchInput`, `Switch`,
+`Card`, `Badge`, `Modal`, `Table`, `Tabs`, `Toast`, `Spinner`, `Skeleton`,
+`EmptyState`, `ErrorState`, `Pagination`. Katalog lengkapnya ada di **`/dev/ui`** — hanya
 terdaftar saat `npm run dev`.
 
 **Varian dikelola satu tabel**, bukan `if` bertingkat di JSX. Tabelnya ditulis
@@ -374,6 +374,14 @@ mengetik (300 ms) yang mengubah yang kedua. Tanpa pemisahan itu, mengetik
 `billing` berarti tujuh request, tujuh entri riwayat browser, dan tabel yang
 berkedip tujuh kali. Nilai yang datang dari luar — tombol Kembali, tombol reset —
 tetap menang atas yang sedang diketik.
+
+**`Switch` bukan sinonim checkbox.** Sakelar berlaku **seketika**; checkbox
+menunggu tombol Simpan. Perbedaan itu dipakai konsisten di halaman pengaturan:
+sakelar tema dan sidebar langsung berlaku, sedangkan matriks notifikasi — yang
+harus pergi ke server dan bisa gagal — ditahan dulu di state lokal dan punya
+tombol Simpan. Sakelar yang berubah di layar lalu diam-diam gagal tersimpan
+adalah bentuk kegagalan paling buruk: pengguna yakin sudah mematikannya, dan
+baru tahu belum ketika ponselnya berbunyi jam dua pagi.
 
 **Belum ada library headless.** `Modal` dibangun di atas `<dialog>` +
 `showModal()` bawaan browser, yang sudah memberi focus trap sungguhan,
@@ -685,7 +693,7 @@ halaman yang akan menolaknya.
 | Email                | Password      | Peran    | Terlihat olehnya                |
 | -------------------- | ------------- | -------- | ------------------------------- |
 | `admin@aio.dev`      | `admin123`    | admin    | semua menu                      |
-| `operator@aio.dev`   | `operator123` | operator | tanpa Settings                  |
+| `operator@aio.dev`   | `operator123` | operator | tanpa menu administratif        |
 | `viewer@aio.dev`     | `viewer123`   | viewer   | Deployments tanpa satu pun aksi |
 | `sesipendek@aio.dev` | `sesipendek`  | operator | sesi mati ~20 detik             |
 
@@ -871,6 +879,66 @@ Log tiap deployment **diturunkan dari statusnya**: yang gagal berhenti di tengah
 yang dibatalkan berhenti lebih awal, yang mengantre belum mulai. Log sepanjang
 penuh untuk deployment yang gagal di detik ke-18 adalah data yang berbohong.
 
+## Pengaturan & profil
+
+> Status: **terpasang** · Issue #13 · `/settings`
+
+Empat bagian dalam satu halaman: profil, keamanan, tampilan, notifikasi. Tab yang
+sedang terbuka tercermin di URL (`/settings?tab=keamanan`) lewat `useUrlState`
+yang sama dengan penyaring di halaman Deployments — jadi "ganti passwordmu di
+sini" bisa dikirim sebagai satu tautan.
+
+### Halaman ini terbuka untuk semua yang sudah masuk
+
+Sampai Issue #12, `/settings` menuntut izin `settings:manage`. Itu keliru begitu
+isinya jadi profil dan password: seorang `viewer` yang tidak bisa membuka halaman
+ini berarti **tidak bisa mengganti passwordnya sendiri**, sehingga akun yang
+dicurigai bocor tidak bisa diamankan pemiliknya. Izinnya karena itu dilepas.
+
+Pengaturan tingkat sistem — katalog, pengguna, integrasi — nanti tinggal di route
+tersendiri dengan `settings:manage`, bukan menumpang di sini.
+
+### Tiga tempat penyimpanan yang berbeda
+
+Yang di UI tampak berdekatan sebenarnya tinggal di tempat yang sangat berbeda,
+dan perbedaan itu yang menentukan bentuk tiap kartunya:
+
+| Bagian         | Disimpan di                          | Punya tombol Simpan?         |
+| -------------- | ------------------------------------ | ---------------------------- |
+| Nama           | Server                               | Ya — bisa gagal              |
+| Password       | Server (tidak pernah dibaca kembali) | Ya                           |
+| Tema & sidebar | `localStorage`, per perangkat        | **Tidak** — berlaku seketika |
+| Notifikasi     | Server, per pengguna                 | Ya                           |
+
+Tema sengaja **tidak** disimpan di server. Terdengar lebih rapi sampai seseorang
+memakai laptop terang di kantor dan ponsel gelap di malam hari — lalu preferensi
+yang "tersinkron" jadi gangguan yang tidak bisa dimatikan. Itu juga yang membuat
+pergantiannya tidak butuh reload: tidak ada perjalanan ke server sama sekali.
+
+### Password saat ini tetap diminta
+
+Meski penggunanya jelas sudah masuk. Sesi yang masih hidup membuktikan seseorang
+pernah tahu passwordnya, bukan bahwa orang yang sedang duduk di depan layar itu
+tahu — tanpa field ini, laptop yang ditinggal tak terkunci dua menit cukup untuk
+mengambil alih akun. Server memeriksanya sendiri, bukan hanya form di browser.
+
+Konfirmasi password diperiksa **di browser saja**: yang dikirim ke server cuma
+satu password baru. Mengirim konfirmasinya berarti mengirim password yang sama
+dua kali tanpa alasan.
+
+### Mock yang benar-benar berubah
+
+Daftar akun di `auth.mock.ts` kini bisa berubah, sama seperti daftar deployment.
+Mock ganti password yang selalu menjawab "berhasil" membuat dua kesalahan yang
+paling mungkin terjadi jadi mustahil ditemukan: password lama tidak benar-benar
+diperiksa, dan password baru tidak benar-benar dipakai. Sekarang keduanya bisa
+diperiksa dalam satu putaran — ganti password, keluar, masuk lagi dengan yang
+baru.
+
+Preferensi notifikasi disimpan **per pengguna**, bukan satu untuk semua. Mock
+yang membagi satu objek ke seluruh akun akan menyembunyikan kesalahan paling
+klasik di endpoint semacam ini: lupa menyaring menurut pemiliknya.
+
 ## Konfigurasi environment
 
 `env.defaults.ts` adalah **satu-satunya** tempat variabel environment
@@ -929,6 +997,7 @@ aio-devops/
 │   │   ├── auth/        sesi, izin, hook login
 │   │   ├── dashboard/   widget dashboard + pemformat khususnya
 │   │   ├── deployments/ tabel, penyaring, dialog aksi, log
+│   │   ├── settings/    kartu profil, password, tampilan, notifikasi
 │   │   └── formatters.ts  label & pemformat yang dipakai lebih dari satu fitur
 │   ├── layouts/         kerangka halaman + sidebar, header, menu pengguna
 │   ├── pages/           satu file per route, di-load lewat lazy()
@@ -939,6 +1008,7 @@ aio-devops/
 │   │   ├── auth/        endpoint sesi + mock-nya
 │   │   ├── dashboard/   satu folder per domain: types, service, queries, mock
 │   │   ├── deployments/ domain kedua, dengan mutasi
+│   │   ├── profile/     profil, password, preferensi notifikasi
 │   │   ├── mock/        backend tiruan (transport + daftar route)
 │   │   ├── environment.ts   kosakata lingkungan, dipakai dua domain
 │   │   ├── http.ts      satu-satunya pemanggil fetch di aplikasi

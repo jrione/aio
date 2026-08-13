@@ -5,7 +5,9 @@
  * route yang sedang aktif, sumber yang sama dengan label sidebar dan
  * `document.title`. Halaman baru otomatis punya judul yang benar.
  */
+import { Badge } from '@/components/ui/Badge.tsx'
 import { Icon } from '@/components/Icon.tsx'
+import { env } from '@/config/env.ts'
 import { UserMenu } from '@/layouts/UserMenu.tsx'
 import { useCurrentRoute } from '@/routes/useCurrentRoute.ts'
 
@@ -42,6 +44,18 @@ export function AppHeader({ collapsed, onOpenMobile, onToggleCollapsed }: AppHea
       </button>
 
       <h1 className="truncate font-display text-lg font-medium text-content">{route.title}</h1>
+
+      {/*
+        Penanda lingkungan, dan hanya saat bukan production.
+        Menampilkannya di produksi berarti melatih orang mengabaikannya — lalu
+        penanda itu ikut tak terlihat justru pada satu keadaan yang memang perlu
+        diperhatikan: menyangka sedang di staging padahal tidak.
+      */}
+      {env.appEnv !== 'production' && (
+        <Badge tone="warning" className="hidden sm:inline-flex">
+          {env.appEnv}
+        </Badge>
+      )}
 
       <div className="ml-auto">
         <UserMenu />

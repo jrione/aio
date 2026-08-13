@@ -38,7 +38,7 @@ interface MockAccount extends User {
 const FIFTEEN_MINUTES = 15 * 60
 const EIGHT_HOURS = 8 * 60 * 60
 
-const ACCOUNTS: readonly MockAccount[] = [
+const SEED_ACCOUNTS: readonly MockAccount[] = [
   {
     id: 'usr-001',
     name: 'Rani Wijaya',
@@ -86,8 +86,54 @@ const ACCOUNTS: readonly MockAccount[] = [
   },
 ]
 
+/**
+ * Daftar akun yang **bisa berubah**, sama seperti daftar deployment di
+ * `deployment.mock.ts`.
+ *
+ * Sejak Issue #13 ada halaman yang mengubah nama dan password pengguna. Kalau
+ * mock membalas "berhasil" tanpa benar-benar mengubah apa pun, dua hal yang
+ * justru paling ingin diperiksa jadi tidak teruji: nama di header ikut berganti
+ * atau tidak, dan password baru benar-benar dipakai saat masuk lagi atau tidak.
+ */
+let accounts: readonly MockAccount[] = SEED_ACCOUNTS
+
+const findAccount = (id: string): MockAccount | undefined =>
+  accounts.find((account) => account.id === id)
+
 /** Bentuk yang dikirim ke klien: akun tanpa password dan tanpa setelan sesi. */
 const toUser = ({ id, name, email, role }: MockAccount): User => ({ id, name, email, role })
+
+/* ─────────────────────────────────────────────────────────────
+ * Yang dipakai mock domain lain
+ *
+ * Diekspor sebagai fungsi, bukan sebagai array `accounts` itu sendiri. Array
+ * yang diekspor akan mengundang pemanggil mengubahnya langsung, dan aturan
+ * "password tidak pernah keluar dari file ini" jadi bergantung pada kedisiplinan
+ * tiap pemanggil alih-alih pada bentuk kodenya.
+ * ───────────────────────────────────────────────────────────── */
+
+/** Profil publik sebuah akun, atau `undefined` bila tidak ada. */
+export const mockUserById = (id: string): User | undefined => {
+  const account = findAccount(id)
+  return account && toUser(account)
+}
+
+export const isMockPassword = (id: string, password: string): boolean =>
+  findAccount(id)?.password === password
+
+const replaceAccount = (id: string, patch: Partial<MockAccount>): User | undefined => {
+  const current = findAccount(id)
+  if (!current) return undefined
+  const next: MockAccount = { ...current, ...patch }
+  accounts = accounts.map((account) => (account.id === id ? next : account))
+  return toUser(next)
+}
+
+export const setMockUserName = (id: string, name: string): User | undefined =>
+  replaceAccount(id, { name })
+
+export const setMockPassword = (id: string, password: string): boolean =>
+  replaceAccount(id, { password }) !== undefined
 
 /* ─────────────────────────────────────────────────────────────
  * Access token
@@ -114,7 +160,7 @@ const accountFromToken = (token: string): MockAccount | undefined => {
   const [prefix, id, expiresAt] = token.split('.')
   if (prefix !== TOKEN_PREFIX || id === undefined || expiresAt === undefined) return undefined
   if (Number(expiresAt) <= Date.now()) return undefined
-  return ACCOUNTS.find((account) => account.id === id)
+  return accounts.find((account) => account.id === id)
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -202,7 +248,7 @@ export const authMockRoutes: readonly MockRoute[] = [
         }
       }
 
-      const account = ACCOUNTS.find(
+      const account = accounts.find(
         (candidate) => candidate.email.toLowerCase() === email.toLowerCase(),
       )
       // Pesannya sengaja sama untuk "email tidak terdaftar" dan "password
@@ -222,7 +268,7 @@ export const authMockRoutes: readonly MockRoute[] = [
     public: true,
     handle: () => {
       const accountId = readRefreshCookie()
-      const account = ACCOUNTS.find((candidate) => candidate.id === accountId)
+      const account = accounts.find((candidate) => candidate.id === accountId)
       if (!account) {
         return { status: 401, body: { message: 'Sesi sudah berakhir. Silakan masuk kembali.' } }
       }

@@ -16,6 +16,7 @@ import { authorizeMockRequest, authMockRoutes } from '@/services/auth/auth.mock.
 import { dashboardMockRoutes } from '@/services/dashboard/dashboard.mock.ts'
 import { deploymentMockRoutes } from '@/services/deployments/deployment.mock.ts'
 import type { MockRoute } from '@/services/mock/mock-transport.ts'
+import { profileMockRoutes } from '@/services/profile/profile.mock.ts'
 
 export { authorizeMockRequest }
 
@@ -23,4 +24,5 @@ export const MOCK_ROUTES: readonly MockRoute[] = [
   ...authMockRoutes,
   ...dashboardMockRoutes,
   ...deploymentMockRoutes,
+  ...profileMockRoutes,
 ]

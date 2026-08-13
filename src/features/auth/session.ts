@@ -114,6 +114,24 @@ export function startSession({ token, expiresIn, user }: SessionResponse): void 
   scheduleRenew(expiresIn)
 }
 
+/**
+ * Memperbarui identitas pengguna tanpa menyentuh token atau jadwal perpanjangan.
+ *
+ * Dipakai setelah pengguna mengubah profilnya sendiri (Issue #13). Sengaja tidak
+ * lewat `startSession`: yang berubah cuma nama, dan memanggil `startSession`
+ * akan menjadwalkan ulang perpanjangan token seolah-olah sesi baru saja dimulai
+ * — memperpanjang umur token secara diam-diam setiap kali seseorang menyunting
+ * namanya.
+ *
+ * Tidak berbuat apa-apa bila tidak ada sesi. Balasan yang datang terlambat —
+ * setelah pengguna keluar — tidak boleh menghidupkan kembali identitasnya.
+ */
+export function updateSessionUser(user: User): void {
+  const current = sessionStore.get()
+  if (current.status !== 'authenticated') return
+  sessionStore.set({ status: 'authenticated', user })
+}
+
 interface EndSessionOptions {
   /**
    * `true` = beri tahu server supaya cookie refresh-nya dicabut. Dipakai saat
