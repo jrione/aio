@@ -10,6 +10,24 @@ log menyeluruh.
 > dijawab sebelum implementasi dimulai — beberapa di antaranya mengubah bentuk
 > rancangan ini secara mendasar, bukan sekadar detailnya.
 
+> ⚠️ **Sebagian sudah digantikan.** Model lingkungan dan daftar peran di dokumen
+> ini **tidak lagi berlaku** — lihat [`rbac-keycloak-jenkins.md`](./rbac-keycloak-jenkins.md),
+> yang menetapkan empat lingkungan (development, qa, sandbox, production) dan lima
+> peran (developer, qa engineer, enterprise architect, devops, it ops), serta izin
+> yang berlingkup lingkungan. Bagian [4](#4-model-domain-inti) dan
+> [6](#6-otorisasi) di bawah dibaca sebagai latar belakang, bukan sebagai
+> spesifikasi.
+
+---
+
+## Dokumen di folder ini
+
+| Dokumen                                                                      | Isi                                                       |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `README.md` (ini)                                                            | Rancangan tingkat sistem: prinsip, peta, integrasi, audit |
+| [`rbac-keycloak-jenkins.md`](./rbac-keycloak-jenkins.md)                     | Katalog peran Keycloak & akses Jenkins per lingkungan     |
+| [`rbac-keycloak-jenkins-keputusan.md`](./rbac-keycloak-jenkins-keputusan.md) | Jawaban atas pertanyaan terbuka RBAC + penyesuaiannya     |
+
 ---
 
 ## Daftar isi
@@ -339,6 +357,11 @@ Cara paling sederhana yang tetap benar: peran Keycloak dinamai berlingkup
 pasangan izin+lingkup. Model yang lebih kaya (per service) sebaiknya menunggu
 sampai memang dibutuhkan — dan pertanyaannya ada di
 [bagian 15](#15-pertanyaan-terbuka).
+
+> Bagian ini **digantikan** [`rbac-keycloak-jenkins.md`](./rbac-keycloak-jenkins.md),
+> yang menurunkan model di bawah jadi katalog peran Keycloak yang lengkap beserta
+> pemetaannya ke Jenkins. Yang tetap berlaku dari sini adalah prinsipnya: dua
+> lapis, izin bukan peran, dan izin berlingkup.
 
 ### Peran awal yang diusulkan
 
