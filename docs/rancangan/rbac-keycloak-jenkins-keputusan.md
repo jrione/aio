@@ -2,7 +2,8 @@
 
 Dokumen anak dari [`rbac-keycloak-jenkins.md`](./rbac-keycloak-jenkins.md).
 Berisi jawaban atas sepuluh pertanyaan terbuka di sana, sembilan pertanyaan
-lanjutan yang muncul darinya, beserta penyesuaian yang ditimbulkannya.
+lanjutan yang muncul darinya, tiga celah yang ditemukan saat backend mulai
+diimplementasikan, beserta penyesuaian yang ditimbulkannya.
 
 Dokumen induknya **tidak ditimpa**. Yang berlaku adalah induk + dokumen ini;
 bila keduanya berselisih, yang di sini yang menang.
@@ -22,6 +23,7 @@ bila keduanya berselisih, yang di sini yang menang.
 9. [Batas lingkup: mengelola, bukan menggerbang](#9-batas-lingkup-mengelola-bukan-menggerbang)
 10. [Yang diparkir](#10-yang-diparkir)
 11. [Pertanyaan lanjutan](#11-pertanyaan-lanjutan)
+12. [Celah dari implementasi backend](#12-celah-dari-implementasi-backend)
 
 ---
 
@@ -42,7 +44,9 @@ bila keduanya berselisih, yang di sini yang menang.
 
 Jawaban atas pertanyaan lanjutan ada di [bagian 11](#11-pertanyaan-lanjutan);
 dampaknya sudah ditulis langsung ke bagian-bagian di bawah, bukan ditumpuk
-sebagai lapisan koreksi ketiga.
+sebagai lapisan koreksi ketiga. Begitu pula celah dari backend di
+[bagian 12](#12-celah-dari-implementasi-backend) — termasuk satu yang mengubah
+jawaban #6: `params` kembali, tapi hanya untuk `VERSION`.
 
 ---
 
@@ -97,8 +101,10 @@ development  → qa
 qa           → production
 ```
 
-`promote:production` berarti "promosikan **dari qa**", bukan "dari mana saja".
-Tanpa deklarasi ini, model induk diam-diam mengizinkan sandbox → production.
+Ke qa dan production, sebuah deployment hanya boleh membawa versi yang **sudah
+sukses di lingkungan sebelumnya** — divalidasi platform, bukan dipercayakan ke
+pemanggil ([bagian 12.3](#123-deployment-di-atas-jenkins)). Tanpa deklarasi ini,
+model induk diam-diam mengizinkan sandbox → production.
 
 Konsekuensi kedua, yang baru terlihat saat membahas kredensial: **konfigurasi
 pipeline qa juga tidak boleh diubah di luar repositori**, sama seperti produksi.
@@ -324,25 +330,36 @@ Kalau kelak tidak semua DevOps boleh menyunting katalog, cukup keluarkan
 `catalog:jobgroup:manage` dari `role-devops` dan pasang terpisah — modelnya
 tidak berubah.
 
+> DevOps juga memegang `access:manage` — memberi dan mencabut hibah
+> ([bagian 12.2](#122-izin-platform)). Alasan di atas tetap berlaku, tapi kini
+> satu peran menentukan isi kelompok **sekaligus** siapa memegangnya. Itu
+> dicatat di sana beserta penyeimbangnya.
+
 ---
 
 ## 5. Katalog peran yang direvisi
 
 ### 5.1 Tingkat akses
 
-`params` keluar dari semua tingkat (jawaban #6). Tingkatnya jadi:
+`params` sempat keluar dari semua tingkat (jawaban #6), lalu **kembali ke
+`release` dalam bentuk yang dipersempit** ([bagian 12.3](#123-deployment-di-atas-jenkins)):
+yang boleh diubah hanya parameter di daftar-boleh lingkungan, dan daftar itu
+hari ini berisi satu nama — `VERSION`. Tingkatnya jadi:
 
 | Tingkat    | Kapabilitas             |
 | ---------- | ----------------------- |
 | `readonly` | `read`, `log`           |
 | `operate`  | + `trigger`, `abort`    |
-| `release`  | + `promote`             |
+| `release`  | + `params`¹, `promote`  |
 | `admin`    | + `configure`, `replay` |
 
-`release` sekarang berarti tepat satu tambahan di atas `operate`: **memindahkan
-artefak ke tahap berikutnya**. Itu justru mempertajam batas yang sudah jadi
-batas terpenting di induk — `operate` menjalankan yang sudah ditentukan,
-`release` menentukan apa yang masuk ke tahap berikutnya.
+¹ Hanya parameter di daftar-boleh lingkungan (hari ini `VERSION`); sisanya
+dipaksa ke nilai default.
+
+`release` menambahkan satu hal di atas `operate`: **menentukan versi apa yang
+masuk ke sebuah tahap**. Itu mempertajam batas yang sudah jadi batas terpenting
+di induk — `operate` menjalankan yang sudah ditentukan, `release` menentukan apa
+yang dijalankan.
 
 ### 5.2 Jumlah peran
 
@@ -351,16 +368,16 @@ bukan `jenkins-prod-release` seperti di induk. Pola item role Role Strategy
 (`^production/.*`) dibangkitkan dari id yang sama, dan dua ejaan untuk satu
 lingkungan adalah undangan untuk salah cocok.
 
-| Keluarga            | Bentuk                                         | Jumlah             |
-| ------------------- | ---------------------------------------------- | ------------------ |
-| Atomik, lingkungan  | `jenkins:<cap>:env:<env>`                      | 8 × 4 − 4 = **28** |
-| Atomik, kelompok    | `jenkins:<cap>:group:<g>`                      | 8 × N              |
-| Atomik, global      | `jenkins:agent:manage`, `jenkins:queue:manage` | **2**              |
-| Atomik, katalog     | `catalog:jobgroup:manage`                      | **1**              |
-| Akses, lingkungan   | `jenkins-<env>-<tingkat>`                      | 4 × 4 − 2 = **14** |
-| Akses, kelompok     | `jenkins-group-<g>-<tingkat>`                  | 4 × N              |
-| Lintas              | `jenkins-agent-admin`, `jenkins-automation`    | **2**              |
-| Preset fungsi kerja | `role-developer`, dst.                         | **5**              |
+| Keluarga            | Bentuk                                                                  | Jumlah             |
+| ------------------- | ----------------------------------------------------------------------- | ------------------ |
+| Atomik, lingkungan  | `jenkins:<cap>:env:<env>`                                               | 8 × 4 − 4 = **28** |
+| Atomik, kelompok    | `jenkins:<cap>:group:<g>`                                               | 8 × N              |
+| Atomik, global      | `jenkins:agent:manage`, `jenkins:queue:manage`                          | **2**              |
+| Atomik, platform    | `catalog:jobgroup:manage`, `access:read`, `access:manage`, `audit:read` | **4**              |
+| Akses, lingkungan   | `jenkins-<env>-<tingkat>`                                               | 4 × 4 − 2 = **14** |
+| Akses, kelompok     | `jenkins-group-<g>-<tingkat>`                                           | 4 × N              |
+| Lintas              | `jenkins-agent-admin`, `jenkins-automation`                             | **2**              |
+| Preset fungsi kerja | `role-developer`, dst.                                                  | **5**              |
 
 Pengurangan `− 4` dan `− 2` adalah plafon di bagian berikutnya: `configure` dan
 `replay` tidak dibangkitkan untuk qa dan production, begitu pula
@@ -422,9 +439,9 @@ Jawaban #4 dan #10 mengubah status matriks di induk bagian 7: ia sekarang
 | **DevOps**               | `admin`    | `admin`     | `release`  | `release`  | —                            |
 | **IT Ops**               | `readonly` | `readonly`  | `readonly` | `release`  | —                            |
 
-Ditambah di luar matriks: `role-devops` memuat `catalog:jobgroup:manage`
-([bagian 4.4](#44-siapa-yang-menyunting-katalog)), dan `jenkins-agent-admin`
-tetap untuk DevOps dan IT Ops.
+Ditambah di luar matriks: izin platform (`catalog:jobgroup:manage`,
+`access:*`, `audit:read`) per peran ada di [bagian 12.2](#122-izin-platform),
+dan `jenkins-agent-admin` tetap untuk DevOps dan IT Ops.
 
 Perubahan dari induk:
 
@@ -702,13 +719,16 @@ cara akses dirancang — bukan sebagai peringatan, melainkan sebagai arahan:
    mengurus payments, bukan `jenkins-production-release`. Tanpa gerbang per
    tindakan, luas hibah **adalah** kendalinya.
 2. **Audit log adalah jejak satu-satunya.** `jenkins.build.trigger`,
-   `jenkins.deployment.promoted`, `catalog.jobgroup.update`, dan
-   `jenkins.casc.applied` harus lengkap dan tidak boleh gagal diam-diam, karena
+   `deployment.run`, `catalog.jobgroup.update`, `role.grant`, `role.revoke`,
+   dan `jenkins.casc.applied` harus lengkap dan tidak boleh gagal diam-diam, karena
    tidak ada catatan persetujuan yang bisa dijadikan rujukan kedua.
 3. **Peninjauan hibah jadi rutin, bukan kejadian.** Usul: tinjau pemegang akses
    tulis produksi tiap kuartal, **beserta** perubahan katalog yang memperluas
    cakupan produksi sebuah kelompok ([bagian 4.4](#44-siapa-yang-menyunting-katalog)).
    Itu satu-satunya titik di mana seseorang melihat kedua daftar itu utuh.
+   Peninjau yang paling wajar adalah **Enterprise Architect**: ia memegang
+   `audit:read` dan `access:read`, tapi tidak bisa menyunting katalog maupun
+   memberi akses ([bagian 12.2](#122-izin-platform)).
 
 Kalau kelak persetujuan dibutuhkan, ia bisa dipasang tanpa mengubah model peran:
 `jenkins-production-release` tetap berarti "boleh menjalankan", dan yang
@@ -722,21 +742,24 @@ menutup pintunya.
 Diputuskan **tidak sekarang**, dan disimpan supaya keputusannya tidak perlu
 diulang dari nol:
 
-| Hal                               | Status                                                        | Bila dibutuhkan                                                                                      |
-| --------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `params`                          | Kapabilitas tetap didefinisikan, tidak masuk tingkat mana pun | Tambahkan ke tingkat, dan **wajib** bersama daftar-boleh parameter per lingkungan                    |
-| Persetujuan produksi              | Dihapus                                                       | Tambah `jenkins-production-approve` + alur backend; model peran tidak berubah                        |
-| Break-glass                       | Dihapus                                                       | Ikut dengan persetujuan; tanpa persetujuan ia tidak punya arti                                       |
-| Tingkat `inventory`               | Belum dibuat                                                  | Bila ada auditor yang boleh melihat daftar pipeline tapi bukan isi log                               |
-| Lingkup per instance              | Tidak dibuat                                                  | Tidak perlu — cukup kelompok job berpola `**` di instance itu                                        |
-| EA akses tulis                    | Tidak diberikan                                               | Tambahkan peran akses seperlunya; preset tidak perlu diubah                                          |
-| `environmentFrom` (strategi lain) | Tidak dibuat; kelimanya `folder-segment`                      | Instance baru yang lingkungannya di akhiran nama job — dan di sana isolasi kredensial hilang         |
-| `JenkinsInstance.environments`    | Tidak dibuat; kelimanya punya empat lingkungan                | Instance yang tidak punya salah satu lingkungan                                                      |
-| JCasC model tarik                 | Tidak dipilih; platform menerapkan langsung                   | Bila platform tidak boleh lagi jadi otoritas izin Jenkins — instance menarik dari repo yang ditinjau |
-| Penyunting katalog selain DevOps  | Tidak dibuat                                                  | Pisahkan `catalog:jobgroup:manage` dari `role-devops`                                                |
+| Hal                               | Status                                            | Bila dibutuhkan                                                                                                 |
+| --------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `params` selain `VERSION`         | Tidak ada di daftar-boleh lingkungan mana pun     | Tambahkan ke daftar-boleh satu per satu, dengan alasannya; jangan pernah parameter yang memilih kode (`BRANCH`) |
+| `audit:export`                    | Belum dibuat                                      | Bila audit perlu dibawa keluar platform; pemegangnya lebih sempit dari `audit:read`                             |
+| Peran kelompok lewat Admin API    | Tidak dipilih; Terraform membaca katalog          | Bila jeda Terraform jadi masalah nyata — dan saat itu platform butuh `manage-clients`                           |
+| Nama job deploy selain `deploy`   | Tidak dibuat; konvensi `/<env>/<aplikasi>/deploy` | Properti `deployPipeline` di `JobGroup`                                                                         |
+| Persetujuan produksi              | Dihapus                                           | Tambah `jenkins-production-approve` + alur backend; model peran tidak berubah                                   |
+| Break-glass                       | Dihapus                                           | Ikut dengan persetujuan; tanpa persetujuan ia tidak punya arti                                                  |
+| Tingkat `inventory`               | Belum dibuat                                      | Bila ada auditor yang boleh melihat daftar pipeline tapi bukan isi log                                          |
+| Lingkup per instance              | Tidak dibuat                                      | Tidak perlu — cukup kelompok job berpola `**` di instance itu                                                   |
+| EA akses tulis                    | Tidak diberikan                                   | Tambahkan peran akses seperlunya; preset tidak perlu diubah                                                     |
+| `environmentFrom` (strategi lain) | Tidak dibuat; kelimanya `folder-segment`          | Instance baru yang lingkungannya di akhiran nama job — dan di sana isolasi kredensial hilang                    |
+| `JenkinsInstance.environments`    | Tidak dibuat; kelimanya punya empat lingkungan    | Instance yang tidak punya salah satu lingkungan                                                                 |
+| JCasC model tarik                 | Tidak dipilih; platform menerapkan langsung       | Bila platform tidak boleh lagi jadi otoritas izin Jenkins — instance menarik dari repo yang ditinjau            |
+| Penyunting katalog selain DevOps  | Tidak dibuat                                      | Pisahkan `catalog:jobgroup:manage` dari `role-devops`                                                           |
 
-Catatan untuk `params`: kalau nanti dipakai, ia **tidak boleh** dihidupkan
-sendirian. Sebuah job produksi berparameter `BRANCH` membuat pemegang `params`
+Catatan untuk `params`: sejak [bagian 12.3](#123-deployment-di-atas-jenkins)
+ia dipakai, dan **tidak pernah** sendirian. Sebuah job produksi berparameter `BRANCH` membuat pemegang `params`
 setara punya hak tulis penuh ke produksi. Daftar-boleh parameter per lingkungan
 adalah bagian dari fiturnya, bukan pelengkap.
 
@@ -785,29 +808,215 @@ persiapan di sisi Jenkins, dan semuanya bisa diperiksa, bukan diputuskan:
 4. **Umumkan bahwa Role Strategy tidak lagi disunting lewat UI**
    ([8.5](#85-konfigurasi-jenkins-dibangkitkan-bukan-diketik)), dan bahwa
    konfigurasi pipeline qa pindah ke repositori Jenkinsfile.
+5. **Seragamkan job deploy** di kelima instance: tepat satu
+   `/<env>/<aplikasi>/deploy` per pasangan, parameter `VERSION` tanpa default,
+   dan artefak `aio.json` ([12.3](#123-deployment-di-atas-jenkins)).
+
+---
+
+## 12. Celah dari implementasi backend
+
+Muncul saat `aio-backend` mulai merinci issue-nya dari dokumen ini: tiga hal
+yang tidak bisa diimplementasikan tanpa keputusan.
+
+| #   | Celah                                                | Jawaban                                                                                                                       |
+| --- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Siapa membuat 12 peran per kelompok di Keycloak?     | **Terraform yang membaca katalog** ([12.1](#121-peran-kelompok-dibangkitkan-terraform))                                       |
+| 2   | Nama izin platform selain `catalog:jobgroup:manage`? | **`audit:read`, `access:read`, `access:manage`** ([12.2](#122-izin-platform))                                                 |
+| 3   | Apa arti "deployment" di model Jenkins?              | **Trigger job deploy + `VERSION`**, divalidasi jalur promosi; versi dari `aio.json` ([12.3](#123-deployment-di-atas-jenkins)) |
+
+### 12.1 Peran kelompok dibangkitkan Terraform
+
+```
+DevOps menyimpan JobGroup   →  katalog platform
+Terraform (terjadwal)       →  membaca daftar kelompok dari API platform
+                            →  12 peran per kelompok di client aio-devops
+```
+
+Platform **tidak** membuat peran lewat Admin API. Itu butuh `manage-clients`,
+yang bisa mengubah client apa pun di realm — redirect URI, secret, mapper — dan
+efektifnya menjadikan setiap pemegang `catalog:jobgroup:manage` pemicu perubahan
+realm. Terraform juga sudah jadi tempat peran lain dibangkitkan
+([induk bagian 14](./rbac-keycloak-jenkins.md#14-konfigurasi-sebagai-kode)),
+jadi ini bukan jalur kedua.
+
+**Jedanya gagal-aman.** Selama peran sebuah kelompok belum ada di Keycloak,
+tidak ada yang bisa memegangnya, jadi kelompok itu tidak memberi akses kepada
+siapa pun — bawaan menolak di [bagian 3.2](#32-aturan-keputusan) berlaku tanpa
+kode tambahan. Item role JCasC yang mengikat authority yang belum ada juga inert
+([bagian 8.3](#83-konfigurasi-keycloak-yang-dibutuhkan)).
+
+Yang dibutuhkan platform:
+
+- **`view-clients`** (baca saja) di client admin-nya, supaya katalog bisa
+  menampilkan status tiap kelompok: _peran tersedia_ atau _menunggu Terraform_.
+- **Penolakan yang menyebut sebabnya.** Memasang peran kelompok yang belum
+  tersedia ditolak dengan pesan "peran kelompok belum dibangkitkan", bukan 404
+  dari Keycloak yang diteruskan mentah.
+- **Endpoint daftar kelompok untuk Terraform**, diakses dengan client
+  `client_credentials` tersendiri yang hanya bisa membacanya.
+
+Menghapus kelompok berarti Terraform menghapus perannya, dan Keycloak ikut
+mencabut pemetaannya dari semua grup. Itu perubahan hak akses: dicatat
+`catalog.jobgroup.delete` **sebelum** dihapus, beserta daftar grup pemegangnya —
+setelahnya daftar itu tidak bisa diambil lagi.
+
+### 12.2 Izin platform
+
+| Izin                      | Cakupan                                                               | Dipegang           |
+| ------------------------- | --------------------------------------------------------------------- | ------------------ |
+| `catalog:jobgroup:manage` | Membuat, mengubah, menghapus kelompok job                             | DevOps             |
+| `access:read`             | Melihat siapa memegang hibah apa, dan selisihnya terhadap preset      | DevOps, IT Ops, EA |
+| `access:manage`           | Menerapkan preset; memasang/melepas peran akses                       | DevOps             |
+| `audit:read`              | Membaca audit log — pembacaannya sendiri dicatat sebagai `audit.read` | DevOps, IT Ops, EA |
+
+**`access:*`, bukan `user:manage`.** Yang dikelola adalah _hibah_, bukan
+pengguna. Platform tidak membuat, menonaktifkan, atau menyunting pengguna — itu
+tetap di Keycloak — dan nama `user:manage` akan mengundang fitur yang bukan
+bagiannya.
+
+**`access:read` mengikuti `audit:read`.** Peninjauan hibah
+([bagian 9](#9-batas-lingkup-mengelola-bukan-menggerbang)) butuh keduanya;
+memberi salah satu tanpa yang lain membuat peninjau hanya melihat separuh.
+
+Bagaimana `access:manage` bekerja:
+
+- **Ditulis ke Keycloak lewat Admin API** sebagai pemetaan client role
+  `aio-devops`. Client admin platform karenanya butuh `manage-users` — README
+  bagian 9.1 sudah membuka kemungkinan itu dengan syarat setiap perubahan
+  menghasilkan `role.grant` atau `role.revoke`.
+- **Hanya peran akses dan preset yang bisa dipasang** — tidak pernah peran
+  atomik, dan tidak pernah peran di luar client `aio-devops`. Ini ditegakkan
+  platform, karena `manage-users` sendiri tidak membatasinya.
+- **Hibah perorangan** ([bagian 6](#6-matriks-jadi-preset-bukan-definisi),
+  butir 2) adalah pengecualian sadar dari
+  [induk bagian 2](./rbac-keycloak-jenkins.md#2-model-tiga-lapis) aturan 1.
+  `access:read` menampilkannya terpisah dari hibah grup, karena itulah yang
+  terlewat saat offboarding.
+
+**Konsentrasi yang perlu diketahui.** DevOps memegang `catalog:jobgroup:manage`
+**dan** `access:manage`: satu peran menentukan isi kelompok sekaligus siapa
+memegangnya — praktis seluruh akses Jenkins. Tiga hal membatasinya:
+
+1. DevOps tidak memperluas akses dirinya sendiri; ia sudah memegang akses
+   lingkungan terluas ([bagian 4.4](#44-siapa-yang-menyunting-katalog)).
+2. Dua batas tetap di luar jangkauannya: plafon lingkungan
+   ([bagian 5.3](#53-plafon-tingkat-per-lingkungan)) dan global role Jenkins
+   ([bagian 8.5](#85-konfigurasi-jenkins-dibangkitkan-bukan-diketik)).
+3. Peninjauan berkala oleh Enterprise Architect, yang bisa membaca keduanya tapi
+   tidak bisa mengubah apa pun.
+
+Kalau kelak dibutuhkan pemisahan tugas, `access:manage` cukup dipindah dari
+`role-devops` ke peran lain — tidak ada yang lain yang berubah.
+
+### 12.3 Deployment di atas Jenkins
+
+Modul Deployments di frontend (`NewDeployment { service, environment, version }`)
+dipetakan begini:
+
+| Konsep frontend    | Di Jenkins                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `service`          | Aplikasi — segmen kedua path job                                                                                              |
+| `environment`      | Segmen pertama path job                                                                                                       |
+| Satu deployment    | Satu build job `/<env>/<aplikasi>/deploy`, di instance mana pun                                                               |
+| `version`          | Parameter `VERSION` saat memicu; dibaca balik dari artefak `aio.json`                                                         |
+| `commit`, `branch` | Artefak `aio.json`                                                                                                            |
+| `status`           | Queue item → `queued`; berjalan → `running`; `SUCCESS` → `succeeded`; `FAILURE`/`UNSTABLE` → `failed`; `ABORTED` → `canceled` |
+
+**Tepat satu job deploy per (aplikasi, lingkungan)** di seluruh instance. Bila
+ada dua, platform tidak menebak: keduanya ditampilkan sebagai anomali katalog
+dan deployment ke pasangan itu ditolak.
+
+#### Memicu deployment
+
+Deployment selalu berupa **trigger + `VERSION`**, di keempat lingkungan. Syarat
+yang diperiksa platform, berurutan:
+
+```
+1. can(aktor, trigger, J)  dan  can(aktor, params, J)      ← aturan dua sumbu, bagian 3.2
+2. VERSION ada, dan semua parameter lain dibiarkan default ← daftar-boleh lingkungan
+3. bila env(J) ∈ {qa, production}:
+     ada build deploy aplikasi yang sama di lingkungan sebelumnya
+     dengan hasil SUCCESS dan aio.json.version = VERSION      ← jalur promosi, bagian 2.3
+```
+
+Syarat ketiga yang menjaga jalur promosi tetap tegak meski bentuknya trigger,
+bukan `promote`. Ke sandbox dan development, `VERSION` bebas.
+
+`AIO_REQUESTED_BY` dan `AIO_CORRELATION_ID` diisi platform
+([induk bagian 12](./rbac-keycloak-jenkins.md#12-bentuk-token--pemetaan)), tidak
+pernah dari masukan pengguna, dan tidak dihitung sebagai `params`.
+
+#### Menjalankan ulang tanpa `release`
+
+`VERSION` di job deploy **tidak punya nilai default**, jadi trigger tanpa
+`params` tidak bisa memulai deployment baru. Yang bisa dilakukan pemegang
+`operate`: menjalankan ulang deployment yang sudah ada di lingkungan yang sama,
+dengan `VERSION` yang diambil platform dari build itu — bukan diisi pengguna.
+Itu menjaga makna "akses prod-operate" di
+[induk bagian 8](./rbac-keycloak-jenkins.md#8-peta-ke-akses-yang-diminta): piket
+boleh menekan tombol yang sama sekali lagi, tapi tidak boleh memilih versi.
+
+#### `aio.json`
+
+Kontrak antara pipeline deploy dan platform, diarsipkan sebagai artefak build:
+
+```json
+{ "version": "v2.14.3", "commit": "a1b2c3d", "branch": "main" }
+```
+
+- Build tanpa `aio.json` tetap ditampilkan, dengan versi kosong, tapi **tidak
+  pernah** dihitung sebagai bukti jalur promosi.
+- Bila `aio.json.version` berbeda dari `VERSION` yang dipicu, build itu ditandai
+  anomali dan juga tidak dihitung. Pipeline yang men-deploy versi lain dari yang
+  diminta adalah tepat hal yang ingin ditangkap.
+
+#### `promote` setelah ini
+
+`promote` tetap ada di tingkat `release`, tapi modul Deployments tidak
+memakainya. Ia untuk pipeline promosi khusus bila memang ada. Bila setelah
+implementasi tidak ada yang memakainya, ia kandidat dihapus — kapabilitas yang
+tidak dipakai siapa pun cepat jadi kapabilitas yang salah dipakai.
+
+#### Audit
+
+`deployment.run` mencatat instance, job, `VERSION`, dan — untuk qa/production —
+build di lingkungan sebelumnya yang dijadikan bukti. Penolakan karena syarat 3
+dicatat sebagai `jenkins.access.denied` dengan sebab `promotion_path`.
+
+#### Dampak ke frontend dan pipeline
+
+- `NewDeploymentDialog`: ke qa/production, versi **dipilih** dari daftar versi
+  yang sukses di lingkungan sebelumnya (endpoint kandidat dari backend), bukan
+  diketik. Ke sandbox/development tetap isian bebas.
+- `DeploymentEnvironment` menjadi empat lingkungan
+  ([induk bagian 15](./rbac-keycloak-jenkins.md#15-dampak-ke-kode-yang-sudah-ada)).
+- Setiap job deploy di kelima instance: parameter `VERSION` tanpa default, dan
+  `archiveArtifacts 'aio.json'` — sudah masuk persiapan di
+  [bagian 11.2](#112-sebelum-implementasi).
 
 ---
 
 ## Lampiran — perubahan terhadap dokumen induk
 
-| Bagian induk                     | Status                                                                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1 Delta                          | Tetap, ditambah: `qa` = `staging`                                                                                             |
-| 2 Model tiga lapis               | Tetap                                                                                                                         |
-| 3 Empat lingkungan               | Alasan untuk `qa` diganti: gerbang akhir sebelum produksi, bukan milik tim penguji; qa mendapat plafon `release`              |
-| 4 Kapabilitas                    | Tetap; `params` tidak dipakai                                                                                                 |
-| 5 Tingkat akses                  | `params` keluar dari `release`; plafon tingkat per lingkungan                                                                 |
-| 6 Katalog peran                  | Ditambah keluarga `group` & `catalog:jobgroup:manage`; ejaan id utuh; `prod-approve`, `breakglass`, `*-admin` qa/prod dihapus |
-| 7 Matriks                        | Jadi preset; developer tidak lagi punya akses produksi; DevOps di qa turun ke `release`                                       |
-| 8 Peta akses                     | Tetap, ditambah akses berbasis kelompok job                                                                                   |
-| 9 Penegakan berlapis             | Kredensial jadi dua per instance × 5 instance; qa tanpa `Configure`; ditambah token reload JCasC                              |
-| 10 Struktur folder               | Dikonfirmasi berlaku di kelima instance; `Environment` kehilangan `requiresApproval`, mendapat `maxLevel`                     |
-| **11 Persetujuan & break-glass** | **Tidak berlaku**                                                                                                             |
-| 12 Token & pemetaan              | Tetap; peran kelompok ikut di `resource_access`                                                                               |
-| 13 Audit                         | Ditambah `catalog.jobgroup.update` & `jenkins.casc.applied`; aksi persetujuan & break-glass hilang                            |
-| 14 Konfigurasi sebagai kode      | Tetap; peran kelompok ikut dibangkitkan; plafon menentukan komposit mana yang dibangkitkan                                    |
-| 15 Dampak ke kode                | Tetap, ditambah lingkup kelompok job dan plafon lingkungan pada `can()`                                                       |
-| 16 Pertanyaan terbuka            | Terjawab; pertanyaan lanjutan juga terjawab di [bagian 11](#11-pertanyaan-lanjutan)                                           |
+| Bagian induk                     | Status                                                                                                                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Delta                          | Tetap, ditambah: `qa` = `staging`                                                                                                                                       |
+| 2 Model tiga lapis               | Tetap                                                                                                                                                                   |
+| 3 Empat lingkungan               | Alasan untuk `qa` diganti: gerbang akhir sebelum produksi, bukan milik tim penguji; qa mendapat plafon `release`                                                        |
+| 4 Kapabilitas                    | Tetap; `params` hanya untuk parameter di daftar-boleh (hari ini `VERSION`)                                                                                              |
+| 5 Tingkat akses                  | `params` tetap di `release` tapi dipersempit; plafon tingkat per lingkungan                                                                                             |
+| 6 Katalog peran                  | Ditambah keluarga `group` & izin platform (`catalog:jobgroup:manage`, `access:*`, `audit:read`); ejaan id utuh; `prod-approve`, `breakglass`, `*-admin` qa/prod dihapus |
+| 7 Matriks                        | Jadi preset; developer tidak lagi punya akses produksi; DevOps di qa turun ke `release`                                                                                 |
+| 8 Peta akses                     | Tetap, ditambah akses berbasis kelompok job                                                                                                                             |
+| 9 Penegakan berlapis             | Kredensial jadi dua per instance × 5 instance; qa tanpa `Configure`; ditambah token reload JCasC                                                                        |
+| 10 Struktur folder               | Dikonfirmasi berlaku di kelima instance; `Environment` kehilangan `requiresApproval`, mendapat `maxLevel`                                                               |
+| **11 Persetujuan & break-glass** | **Tidak berlaku**                                                                                                                                                       |
+| 12 Token & pemetaan              | Tetap; peran kelompok ikut di `resource_access`                                                                                                                         |
+| 13 Audit                         | Ditambah `catalog.jobgroup.update`/`delete`, `jenkins.casc.applied`, `role.grant`/`revoke`; aksi persetujuan & break-glass hilang                                       |
+| 14 Konfigurasi sebagai kode      | Tetap; peran kelompok ikut dibangkitkan; plafon menentukan komposit mana yang dibangkitkan                                                                              |
+| 15 Dampak ke kode                | Tetap, ditambah lingkup kelompok job dan plafon lingkungan pada `can()`                                                                                                 |
+| 16 Pertanyaan terbuka            | Terjawab; pertanyaan lanjutan juga terjawab di [bagian 11](#11-pertanyaan-lanjutan)                                                                                     |
 
 ---
 
